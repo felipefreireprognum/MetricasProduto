@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:/Users/Felipe.Freire/miniconda3/envs/metrics/Scripts/pip install:*)",
+      "Bash(python -c \"\nimport fitz\ndoc = fitz.open\\(r'C:\\\\Users\\\\Felipe.Freire\\\\Downloads\\\\C6-AG31_022026.pdf'\\)\nfor i, page in enumerate\\(doc\\):\n    if i >= 5: break\n    print\\(f'=== PAGINA {i+1} ==='\\)\n    print\\(page.get_text\\(\\)\\)\n\")",
+      "Bash(python -c \"\nimport fitz\ndoc = fitz.open\\(r'C:\\\\Users\\\\Felipe.Freire\\\\Downloads\\\\ITAU-AG31-itaufcvs.022026.pdf'\\)\nfor i, page in enumerate\\(doc\\):\n    if i >= 5: break\n    print\\(f'=== PAGINA {i+1} ==='\\)\n    print\\(page.get_text\\(\\)\\)\n\")",
+      "Bash(python -c \"\nimport fitz\ndoc = fitz.open\\(r'C:\\\\Users\\\\Felipe.Freire\\\\Downloads\\\\C6-AG31_022026.pdf'\\)\nprint\\(f'C6: {len\\(doc\\)} paginas'\\)\nfor i, page in enumerate\\(doc\\):\n    if i < 5: continue\n    print\\(f'=== PAGINA {i+1} ==='\\)\n    print\\(page.get_text\\(\\)\\)\n\")",
+      "Bash(python -c \"\nimport fitz\ndoc = fitz.open\\(r'C:\\\\Users\\\\Felipe.Freire\\\\Downloads\\\\ITAU-AG31-itaufcvs.022026.pdf'\\)\nprint\\(f'ITAU: {len\\(doc\\)} paginas'\\)\nfor i, page in enumerate\\(doc\\):\n    if i < 2: continue\n    print\\(f'=== PAGINA {i+1} ==='\\)\n    print\\(page.get_text\\(\\)\\)\n\")",
+      "Bash(pip install:*)",
+      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python -c \"\nimport xml.etree.ElementTree as ET\ntree = ET.parse\\('documentosuteis/AG31'\\)\nroot = tree.getroot\\(\\)\ncampos = root.find\\('CAMPOS'\\)\nprint\\('=== SICREDI \\(XML\\) - todos os campos ==='\\)\nfor elem in campos:\n    if elem.tag != 'FASES' and elem.text is not None:\n        print\\(f'  {elem.tag} = {elem.text.strip\\(\\)}'\\)\nprint\\(f'\\\\nTotal: {sum\\(1 for e in campos if e.tag != \\\\\"FASES\\\\\" and e.text is not None\\)} campos'\\)\n\")",
+      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python compare_banks.py 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python compare_banks.py)"
+    ]
+  }
+}
