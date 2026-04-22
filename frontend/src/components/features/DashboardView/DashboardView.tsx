@@ -1,38 +1,38 @@
 'use client';
 
 import type { DashboardData, TabelaRow } from '@/types/dashboard';
+import type { BankTokens } from '@/theme/tokens';
+import TempoMedioFaseChart from '@/components/charts/TempoMedioFaseChart';
 import OperacoesPorFaseChart from '@/components/charts/OperacoesPorFaseChart';
 import VolumePorDataChart from '@/components/charts/VolumePorDataChart';
-import TempoMedioFaseChart from '@/components/charts/TempoMedioFaseChart';
-import TopUsuariosChart from '@/components/charts/TopUsuariosChart';
 import DistribuicaoFasesChart from '@/components/charts/DistribuicaoFasesChart';
 import GenericTableView from './GenericTableView';
 
 interface Props {
-  tabelaSelecionada: string;
-  dashboardData: DashboardData | null;
+  dashboardData: DashboardData;
   rows: TabelaRow[];
+  tokens: BankTokens;
 }
 
-export default function DashboardView({ tabelaSelecionada, dashboardData, rows }: Props) {
-  if (tabelaSelecionada === 'HISTORICO_OPERACAO' && dashboardData) {
-    return (
-      <div className="space-y-4">
-        {/* Row 1 — full width */}
-        <VolumePorDataChart data={dashboardData.volumePorData} />
-        {/* Row 2 — 2 cols */}
-        <div className="grid grid-cols-2 gap-4">
-          <OperacoesPorFaseChart data={dashboardData.operacoesPorFase} />
-          <DistribuicaoFasesChart data={dashboardData.distribuicaoFases} />
-        </div>
-        {/* Row 3 — 2 cols */}
-        <div className="grid grid-cols-2 gap-4">
-          <TempoMedioFaseChart data={dashboardData.tempoMedioPorFase} />
-          <TopUsuariosChart data={dashboardData.topUsuarios} />
-        </div>
-      </div>
-    );
-  }
+export default function DashboardView({ dashboardData, rows, tokens: t }: Props) {
+  return (
+    <div className="space-y-4">
+      <TempoMedioFaseChart data={dashboardData.tempoMedioPorFase} tokens={t} />
 
-  return <GenericTableView rows={rows} />;
+      <div className="grid grid-cols-2 gap-4">
+        <VolumePorDataChart data={dashboardData.volumePorData} tokens={t} />
+        <OperacoesPorFaseChart data={dashboardData.operacoesPorFase} tokens={t} />
+      </div>
+
+      <DistribuicaoFasesChart data={dashboardData.distribuicaoFases} tokens={t} />
+
+      <div>
+        <p className="mb-2 text-sm font-semibold" style={{ color: t.text.primary }}>
+          Registros — HISTORICO_OPERACAO
+          <span className="ml-2 text-xs font-normal" style={{ color: t.text.muted }}>({rows.length} linhas)</span>
+        </p>
+        <GenericTableView rows={rows} tokens={t} />
+      </div>
+    </div>
+  );
 }

@@ -10,7 +10,14 @@
       "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python -c \"import ast; ast.parse\\(open\\('app.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
       "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python -c \"\nimport xml.etree.ElementTree as ET\ntree = ET.parse\\('documentosuteis/AG31'\\)\nroot = tree.getroot\\(\\)\ncampos = root.find\\('CAMPOS'\\)\nprint\\('=== SICREDI \\(XML\\) - todos os campos ==='\\)\nfor elem in campos:\n    if elem.tag != 'FASES' and elem.text is not None:\n        print\\(f'  {elem.tag} = {elem.text.strip\\(\\)}'\\)\nprint\\(f'\\\\nTotal: {sum\\(1 for e in campos if e.tag != \\\\\"FASES\\\\\" and e.text is not None\\)} campos'\\)\n\")",
       "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python compare_banks.py 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python compare_banks.py)"
+      "Bash(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" && python compare_banks.py)",
+      "Bash(npx create-next-app@latest frontend --typescript --tailwind --app --src-dir --no-eslint --import-alias \"@/*\" --yes)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(taskkill *)",
+      "WebSearch",
+      "WebFetch(domain:brandfetch.com)"
     ]
   }
 }

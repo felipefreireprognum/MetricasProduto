@@ -3,14 +3,15 @@ export interface TabelaRow {
 }
 
 export interface HistoricoOperacao {
-  NUOPERACAO: number;
-  NUFASEOPERACAO: number;
-  DTINICIOFASE: string;
-  COUSUARIOFASE: string;
+  NU_OPERACAO: number;
+  NU_FASE_OPERACAO: number;
+  DT_INICIO_FASE: string;
+  CO_USUARIO_FASE: string;
 }
 
 export interface FaseCount {
   fase: number;
+  nome: string;
   total: number;
 }
 
@@ -26,7 +27,15 @@ export interface UsuarioData {
 
 export interface TempoFase {
   fase: number;
+  nome: string;
   tempoMedioDias: number;
+}
+
+export interface DashboardKpis {
+  totalRegistros: number;
+  operacoesUnicas: number;
+  fasesUnicas: number;
+  topUsuario: string;
 }
 
 export interface DashboardData {
@@ -35,4 +44,7 @@ export interface DashboardData {
   tempoMedioPorFase: TempoFase[];
   topUsuarios: UsuarioData[];
   distribuicaoFases: FaseCount[];
+  kpis: DashboardKpis;
+  colunas: string[];
+  primeiraLinha: TabelaRow | null;
 }

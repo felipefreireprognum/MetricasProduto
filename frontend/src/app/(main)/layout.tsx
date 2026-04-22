@@ -7,7 +7,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import { ROUTES } from '@/constants/routes';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, tokens } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,9 +17,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: tokens.bg.base }}>
       <Sidebar />
-      <main className="flex-1 overflow-hidden">{children}</main>
+      <main className="flex-1 overflow-hidden" style={{ backgroundColor: tokens.bg.base }}>
+        {children}
+      </main>
     </div>
   );
 }

@@ -21,9 +21,22 @@ export const STRINGS = {
 
   nav: {
     dashboard: 'Dashboard',
+    tabelas: 'Tabelas',
     ag31: 'AG31',
     comparativo: 'Comparativo',
     logout: 'Sair',
+  },
+
+  tabelas: {
+    title: 'Tabelas',
+    subtitle: 'Consulta ao banco de dados',
+    tabela: 'Tabela',
+    limite: 'Limite de registros',
+    sqlCustom: 'SQL Customizado',
+    executar: 'Executar',
+    carregando: 'Carregando...',
+    semDados: 'Nenhum dado encontrado',
+    registros: 'registros',
   },
 
   dashboard: {
