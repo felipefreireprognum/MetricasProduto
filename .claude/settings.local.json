@@ -17,7 +17,10 @@
       "Bash(npm run *)",
       "Bash(taskkill *)",
       "WebSearch",
-      "WebFetch(domain:brandfetch.com)"
+      "WebFetch(domain:brandfetch.com)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

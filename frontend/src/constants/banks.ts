@@ -4,6 +4,7 @@ export interface BankConfig {
   fullName: string;
   dbType: string;
   ambiente: string;
+  apiPrefix: string;
   enabled: boolean;
   colors: {
     bg: string;
@@ -20,6 +21,7 @@ export const BANKS: BankConfig[] = [
     fullName: 'C6 Bank',
     dbType: 'Firebird',
     ambiente: process.env.NEXT_PUBLIC_C6_AMBIENTE || '/u10/c6bank/dados/scci.gdb',
+    apiPrefix: '',
     enabled: true,
     colors: {
       bg: '#0D0D0D',
@@ -34,6 +36,7 @@ export const BANKS: BankConfig[] = [
     fullName: 'Sicoob',
     dbType: 'Firebird',
     ambiente: '',
+    apiPrefix: '',
     enabled: false,
     colors: {
       bg: '#003641',
@@ -48,6 +51,7 @@ export const BANKS: BankConfig[] = [
     fullName: 'CFAE',
     dbType: 'A definir',
     ambiente: '',
+    apiPrefix: '',
     enabled: false,
     colors: {
       bg: '#1E3A5F',
@@ -62,6 +66,7 @@ export const BANKS: BankConfig[] = [
     fullName: 'Banco Inter',
     dbType: 'SQL Server',
     ambiente: '',
+    apiPrefix: '/inter',
     enabled: false,
     colors: {
       bg: '#FF8700',

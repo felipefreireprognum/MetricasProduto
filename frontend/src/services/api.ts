@@ -3,7 +3,7 @@ import type { Credentials } from '@/types/auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const api = axios.create({ baseURL: BASE_URL });
+export const api = axios.create({ baseURL: BASE_URL, timeout: 180000 });
 
 let _credentials: Credentials | null = null;
 
@@ -13,10 +13,11 @@ export function setCredentials(creds: Credentials | null) {
 
 api.interceptors.request.use((config) => {
   if (_credentials) {
+    const isInter = config.url?.startsWith('/inter');
     config.params = {
       login: _credentials.login,
       senha: _credentials.senha,
-      ambiente: _credentials.ambiente,
+      ...(isInter ? {} : { ambiente: _credentials.ambiente }),
       ...config.params,
     };
   }

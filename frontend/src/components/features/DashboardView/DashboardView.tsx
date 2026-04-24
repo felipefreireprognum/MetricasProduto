@@ -1,38 +1,32 @@
 'use client';
 
-import type { DashboardData, TabelaRow } from '@/types/dashboard';
+import type { DashboardData } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
+import { buildComparison } from '@/utils/mappers/comparisonMapper';
 import TempoMedioFaseChart from '@/components/charts/TempoMedioFaseChart';
 import OperacoesPorFaseChart from '@/components/charts/OperacoesPorFaseChart';
 import VolumePorDataChart from '@/components/charts/VolumePorDataChart';
-import DistribuicaoFasesChart from '@/components/charts/DistribuicaoFasesChart';
-import GenericTableView from './GenericTableView';
+import TopUsuariosChart from '@/components/charts/TopUsuariosChart';
 
 interface Props {
-  dashboardData: DashboardData;
-  rows: TabelaRow[];
+  dataC6: DashboardData | null;
+  dataInter: DashboardData | null;
   tokens: BankTokens;
 }
 
-export default function DashboardView({ dashboardData, rows, tokens: t }: Props) {
+export default function DashboardView({ dataC6, dataInter, tokens: t }: Props) {
+  const cmp = buildComparison(dataC6, dataInter);
+
   return (
     <div className="space-y-4">
-      <TempoMedioFaseChart data={dashboardData.tempoMedioPorFase} tokens={t} />
+      <TempoMedioFaseChart data={cmp.tempoFase} tokens={t} />
 
       <div className="grid grid-cols-2 gap-4">
-        <VolumePorDataChart data={dashboardData.volumePorData} tokens={t} />
-        <OperacoesPorFaseChart data={dashboardData.operacoesPorFase} tokens={t} />
+        <VolumePorDataChart data={cmp.volume} tokens={t} />
+        <OperacoesPorFaseChart data={cmp.fases} tokens={t} />
       </div>
 
-      <DistribuicaoFasesChart data={dashboardData.distribuicaoFases} tokens={t} />
-
-      <div>
-        <p className="mb-2 text-sm font-semibold" style={{ color: t.text.primary }}>
-          Registros — HISTORICO_OPERACAO
-          <span className="ml-2 text-xs font-normal" style={{ color: t.text.muted }}>({rows.length} linhas)</span>
-        </p>
-        <GenericTableView rows={rows} tokens={t} />
-      </div>
+      <TopUsuariosChart topC6={cmp.topC6} topInter={cmp.topInter} tokens={t} />
     </div>
   );
 }

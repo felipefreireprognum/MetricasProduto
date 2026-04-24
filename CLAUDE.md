@@ -11,61 +11,79 @@ O AG31 é um relatório mensal que os bancos enviam contendo métricas de:
 
 ---
 
-## Arquivos
+## Como Rodar
 
-### `app.py` — Dashboard Multi-Banco (AG31 estático)
-Streamlit. Lê arquivos locais em `documentosuteis/`:
-- **Sicredi**: XML (`AG31`) — parser com `xml.etree.ElementTree`
-- **C6 Bank**: PDF (`C6-AG31_022026.pdf`) — parser com `fitz` (PyMuPDF)
-- **Itaú**: PDF (`ITAU-AG31-itaufcvs.022026.pdf`) — parser com `fitz`
+> **Stack oficial: Next.js (frontend) + FastAPI (backend).** Os arquivos `app.py` e `dashboard.py` (Streamlit) são protótipos antigos — não são mais o produto principal.
 
-Páginas: Dashboard, Tabela Detalhada, Dados Brutos, Comparativo.
+**Terminal 1 — Backend**
+```bash
+uvicorn api:app --reload --port 8000
+```
 
-Tema visual dinâmico por banco (TEMAS dict). Métricas normalizadas para chaves padronizadas:
-- `PRI_CTR_*` = Base Principal / Contratos
-- `FIN_CTR_*` = Base Finalizados / Contratos
-- `PRI_IMV_*` / `FIN_IMV_*` = Imóveis
-- `ORI_*` = Originação
+**Terminal 2 — Frontend**
+```bash
+cd frontend
+npm run dev
+```
+Acesso: `http://localhost:3000`
 
-### `dashboard.py` — Dashboard Live (Firebird via API)
-Streamlit. Conecta à API REST local para consultar o banco Firebird em tempo real.
-- Sidebar: seleção de tabela, slider de limite, query SQL customizada
-- Análise especial para tabela `HISTORICO_OPERACAO`: gráficos por fase, volume por data, top usuários
-- Para outras tabelas: gráficos automáticos por tipo de coluna
+---
+
+## Arquivos Principais
+
+### `frontend/` — Frontend Next.js (React 19 + Tailwind + Recharts)
+App oficial. Estrutura relevante:
+- `src/app/(main)/` — rotas: `/dashboard`, `/ag31`, `/ag31/comparativo`, `/tabelas`
+- `src/contexts/AuthContext.tsx` — login, conexão multi-banco em paralelo
+- `src/constants/banks.ts` — configuração dos bancos (`BANKS[]`): id, dbType, ambiente, enabled, cores
+- `src/services/api.ts` — axios com interceptor de credenciais, aponta para `localhost:8000`
+- `src/services/databaseService.ts` — chamadas à API
+- `src/components/features/DashboardView/` — view principal do dashboard live
+- `src/components/charts/` — gráficos Recharts (TempoMedioFase, OperacoesPorFase, VolumePorData, TopUsuarios)
+
+Bancos configurados em `banks.ts`:
+- **C6 Bank** — Firebird, `enabled: true`, ambiente `/u10/c6bank/dados/scci.gdb`
+- **Sicoob** — Firebird, `enabled: false`
+- **CFAE** — a definir, `enabled: false`
+- **Banco Inter** — SQL Server, `enabled: false`
 
 ### `api.py` — Backend FastAPI
-Endpoints:
-- `GET /tabelas` — lista todas as tabelas do Firebird
+Endpoints (todos aceitam `?login=&senha=&ambiente=`):
+- `GET /tabelas` — lista tabelas do banco
 - `GET /tabela/{nome}?limit=&offset=` — retorna dados de uma tabela
 - `GET /query?sql=` — executa SQL livre
 
-### `database.py` — Conexão Firebird
-Conecta via **SSH tunnel** (`sshtunnel`) ao servidor remoto, depois abre conexão **Firebird** (`fdb`) com charset `WIN1252`.
-Variáveis de ambiente: `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PASSWORD`, `DB_PORT`, `DB_PATH`, `DB_USER`, `DB_PASSWORD`, `DB_CHARSET`.
+### `core/database.py` — Conexão Firebird
+Conecta via **SSH tunnel** (`sshtunnel`) → **Firebird** (`fdb`), charset `WIN1252`.
+Vars de ambiente: `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PASSWORD`, `DB_PORT`, `DB_PATH`, `DB_USER`, `DB_PASSWORD`, `DB_CHARSET`.
 
-### `compare_banks.py` — Script de Comparação
-Script standalone para comparar métricas entre Sicredi (XML), C6 (PDF) e Itaú (PDF). Imprime tabela terminal com campos faltantes/extras por banco.
+---
+
+## Arquivos Legados (não usar como referência)
+
+- `app.py` — protótipo Streamlit com parsers XML/PDF estáticos (Sicredi, C6, Itaú)
+- `dashboard.py` — protótipo Streamlit do dashboard live
+- `compare_banks.py` — script de comparação terminal
 
 ---
 
 ## Stack
 
-- **Frontend**: Streamlit + Plotly (go.Figure, px)
+- **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4 + Recharts
 - **Backend**: FastAPI + Uvicorn
 - **Banco**: Firebird via `fdb`, acesso remoto via SSH tunnel (`sshtunnel`)
-- **Parse PDF**: PyMuPDF (`fitz`)
-- **Parse XML**: `xml.etree.ElementTree`
-- **Dados**: pandas
+- **Parse PDF** (legado): PyMuPDF (`fitz`)
+- **Parse XML** (legado): `xml.etree.ElementTree`
+- **Dados**: pandas (backend)
 
 ---
 
-## Convenções Visuais
+## Convenções Visuais (frontend)
 
-- Paleta: azul `#1A5FFF`, amarelo `#FFD93D`, fundo branco — estilo corporativo clean
-- Fonte: Inter (Google Fonts)
-- Cards de métricas com borda superior colorida por variante
-- Tema dinâmico em `app.py`: cada banco tem seu tema de cores próprio
-- Componente `section_label()` / `.section-title` para separação visual de seções
+- Paleta base: azul `#1A5FFF`, fundo `#F8F9FC`, texto `#0F172A`
+- Cada banco tem seu próprio objeto `colors` em `banks.ts` (bg, text, accent, badge)
+- Fonte: Inter
+- Componentes: `Card` com prop `accent`, `SectionTitle`, `LoadingState`, `EmptyState`
 
 ---
 

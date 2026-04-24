@@ -1,4 +1,5 @@
 fdb
+pymssql
 fastapi
 uvicorn
 streamlit

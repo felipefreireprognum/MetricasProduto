@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
 
-    const bancosHabilitados = BANKS.filter((b) => b.enabled && b.ambiente);
+    const bancosHabilitados = BANKS.filter((b) => b.enabled && (b.ambiente || b.apiPrefix));
 
     if (!bancosHabilitados.length) {
       setError('Nenhum ambiente configurado.');
@@ -50,7 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       bancosHabilitados.map(async (banco) => {
         const fullCreds: Credentials = { ...creds, ambiente: banco.ambiente };
         setCredentials(fullCreds);
-        await databaseService.listarTabelas();
+        if (banco.apiPrefix) {
+          await databaseService.inter.listarTabelas();
+        } else {
+          await databaseService.listarTabelas();
+        }
         return banco;
       })
     );

@@ -1,44 +1,37 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { databaseService } from '@/services/databaseService';
-import type { TabelaRow, DashboardData } from '@/types/dashboard';
+import { useMemo } from 'react';
+import { useCache } from '@/contexts/CacheContext';
+import { useFilters } from '@/contexts/FiltersContext';
 import { buildDashboardData } from '@/utils/mappers/dashboardMapper';
 
-export const LIMITE_OPTIONS = [500, 1000, 2000, 5000] as const;
-
 export function useDashboardScreen() {
-  const [rows, setRows] = useState<TabelaRow[]>([]);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [limite, setLimite] = useState<number>(500);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const { bancosCache, loading } = useCache();
+  const { removedBancoIds } = useFilters();
 
-  const fetchMetricas = useCallback(async (lim: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await databaseService.buscarHistoricoComFase(lim);
-      setRows(data);
-      setDashboardData(buildDashboardData(data));
-      setLastUpdated(new Date().toLocaleTimeString('pt-BR'));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const active = bancosCache.filter((b) => !removedBancoIds.includes(b.id));
 
-  useEffect(() => {
-    fetchMetricas(limite);
-  }, [limite, fetchMetricas]);
+  const dataC6 = useMemo(() => {
+    const rows = active.find((b) => b.id === 'c6')?.rows ?? [];
+    return rows.length ? buildDashboardData(rows) : null;
+  }, [active]);
 
-  return {
-    rows, dashboardData,
-    limite, setLimite,
-    loading, error,
-    fetchMetricas: () => fetchMetricas(limite),
-    lastUpdated,
-  };
+  const dataInter = useMemo(() => {
+    const rows = active.find((b) => b.id === 'inter')?.rows ?? [];
+    return rows.length ? buildDashboardData(rows) : null;
+  }, [active]);
+
+  const dataGlobal = useMemo(() => {
+    const all = active.flatMap((b) => b.rows);
+    return all.length ? buildDashboardData(all) : null;
+  }, [active]);
+
+  const hasData   = !!dataGlobal;
+  const fromCache = active.some((b) => b.fromCache);
+  const lastUpdated = active
+    .map((b) => b.lastUpdated)
+    .filter(Boolean)
+    .join(' · ') || null;
+
+  return { dataC6, dataInter, dataGlobal, loading, hasData, fromCache, lastUpdated };
 }

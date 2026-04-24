@@ -1,131 +1,461 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Table, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard, GitCompareArrows, ListChecks, TrendingDown,
+  Activity, LineChart, FileBarChart2, ChevronDown, Plus, X,
+  Info, LogOut, Calendar, Check, RefreshCw,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFilters, PERIODO_PRESETS, type PeriodoPreset } from '@/contexts/FiltersContext';
+import { useCache, LIMITE_OPTIONS } from '@/contexts/CacheContext';
 import { ROUTES } from '@/constants/routes';
-import { STRINGS } from '@/constants/strings';
+import type { BankConfig } from '@/constants/banks';
+import type { BankTokens } from '@/theme/tokens';
 
-const navItems = [
-  { href: ROUTES.DASHBOARD, icon: LayoutDashboard, label: STRINGS.nav.dashboard },
-  { href: ROUTES.TABELAS, icon: Table, label: STRINGS.nav.tabelas },
+// ── Nav ───────────────────────────────────────────────────────────────────────
+
+const NAV = [
+  { href: ROUTES.DASHBOARD,   label: 'Visão Geral',      icon: LayoutDashboard,  soon: false },
+  { href: ROUTES.COMPARATIVO, label: 'Comparativo',      icon: GitCompareArrows, soon: true  },
+  { href: ROUTES.FASES,       label: 'Análise por Fase', icon: ListChecks,       soon: false },
+  { href: ROUTES.ABANDONO,    label: 'Abandono',         icon: TrendingDown,     soon: true  },
+  { href: ROUTES.TABELAS,     label: 'Operações',        icon: Activity,         soon: false },
+  { href: ROUTES.TENDENCIAS,  label: 'Tendências',       icon: LineChart,        soon: true  },
+  { href: ROUTES.RELATORIOS,  label: 'Relatórios',       icon: FileBarChart2,    soon: true  },
 ];
+
+// ── Bank chip colors ──────────────────────────────────────────────────────────
+
+const CHIP: Record<string, { bg: string; fg: string; label: string }> = {
+  c6:    { bg: '#111827', fg: '#FFFFFF', label: 'C6'  },
+  inter: { bg: '#FF8700', fg: '#FFFFFF', label: 'in'  },
+};
+
+function chipStyle(banco: BankConfig) {
+  return CHIP[banco.id] ?? {
+    bg: banco.colors.bg,
+    fg: banco.colors.text,
+    label: banco.name.slice(0, 2).toUpperCase(),
+  };
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
+      {children}
+    </p>
+  );
+}
+
+function FilterLabel({ children, info }: { children: React.ReactNode; info?: boolean }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-1 text-xs text-[#94A3B8]">
+      {children}
+      {info && <Info className="h-3 w-3 cursor-help opacity-60" />}
+    </div>
+  );
+}
+
+function BankChip({ banco, onRemove }: { banco: BankConfig; onRemove: () => void }) {
+  const c = chipStyle(banco);
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1.5">
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold"
+          style={{ backgroundColor: c.bg, color: c.fg }}
+        >
+          {c.label}
+        </span>
+        <span className="truncate text-sm font-medium text-[#0F172A]">{banco.name}</span>
+        <span className="text-[10px] text-[#94A3B8] shrink-0">{banco.dbType}</span>
+      </div>
+      <button
+        onClick={onRemove}
+        className="text-[#CBD5E1] transition-colors hover:text-[#64748B]"
+        aria-label={`Remover ${banco.name}`}
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function NavItem({
+  href, label, icon: Icon, active, soon, t,
+}: {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  active: boolean;
+  soon: boolean;
+  t: BankTokens;
+}) {
+  const content = (
+    <>
+      <Icon size={15} strokeWidth={active ? 2.2 : 1.8} />
+      <span className="flex-1">{label}</span>
+      {soon && (
+        <span
+          className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+          style={{ backgroundColor: '#F1F5F9', color: '#94A3B8' }}
+        >
+          Em breve
+        </span>
+      )}
+    </>
+  );
+
+  const style = {
+    borderLeft: active ? `2px solid ${t.sidebar.activeBorder}` : '2px solid transparent',
+    backgroundColor: active ? t.sidebar.activeBg : 'transparent',
+    color: active ? t.sidebar.activeText : soon ? '#CBD5E1' : t.sidebar.text,
+    fontWeight: active ? 600 : 400,
+    marginLeft: '-1px',
+  } as React.CSSProperties;
+
+  if (soon) {
+    return (
+      <span
+        className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-sm"
+        style={style}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors"
+      style={style}
+      onMouseEnter={(e) => {
+        if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = t.sidebar.hoverBg;
+      }}
+      onMouseLeave={(e) => {
+        if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+      }}
+    >
+      {content}
+    </Link>
+  );
+}
+
+// ── Period picker ─────────────────────────────────────────────────────────────
+
+function PeriodPicker({ t }: { t: BankTokens }) {
+  const { periodoLabel, setPeriodo } = useFilters();
+  const [open, setOpen] = useState(false);
+
+  const select = (preset: PeriodoPreset) => {
+    setPeriodo(preset);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs text-[#0F172A] transition-colors hover:border-[#CBD5E1]"
+      >
+        <span className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-[#94A3B8]" />
+          {periodoLabel}
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[#94A3B8] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          {/* Dropdown */}
+          <div
+            className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg py-1 shadow-lg"
+            style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
+          >
+            {PERIODO_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                onClick={() => select(preset)}
+                className="flex w-full items-center justify-between px-3 py-2 text-xs transition-colors hover:bg-[#F8F9FC]"
+                style={{ color: t.text.primary }}
+              >
+                {preset.label}
+                {preset.label === periodoLabel && (
+                  <Check className="h-3 w-3" style={{ color: t.accent.primary }} />
+                )}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { credentials, disconnect, bancosConectados, tokens } = useAuth();
+  const { credentials, disconnect, bancosConectados, tokens: t } = useAuth();
+  const { removedBancoIds, toggleBanco } = useFilters();
+  const { bancosCache, fetchBanco, setLimiteBanco } = useCache();
 
-  const t = tokens;
+  const [consolidacao, setConsolidacao] = useState<'consolidado' | 'empresa'>('consolidado');
+
+  const visibleBanks = bancosConectados.filter((b) => !removedBancoIds.includes(b.id));
+  const hiddenBanks  = bancosConectados.filter((b) =>  removedBancoIds.includes(b.id));
 
   return (
     <aside
-      className="flex h-screen w-60 shrink-0 flex-col"
+      className="flex h-screen w-[260px] shrink-0 flex-col"
       style={{ backgroundColor: t.bg.sidebar, borderRight: `1px solid ${t.border.subtle}` }}
     >
-      {/* Topo: Prognum + banco */}
-      <div className="px-4 pt-5 pb-4" style={{ borderBottom: `1px solid ${t.border.subtle}` }}>
-        {/* Prognum */}
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#1A5FFF] to-[#0A2E8A]">
-            <span className="text-xs font-black text-white">P</span>
-          </div>
-          <span className="text-sm font-black tracking-tight" style={{ color: t.text.primary }}>
-            Prognum
-          </span>
+      {/* ── Logo */}
+      <div
+        className="flex items-center gap-2.5 px-5 pt-5 pb-4"
+        style={{ borderBottom: `1px solid ${t.border.subtle}` }}
+      >
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-black text-[13px] text-white"
+          style={{ background: 'linear-gradient(135deg,#1A5FFF 0%,#0A2E8A 100%)' }}
+        >
+          P
         </div>
+        <span className="text-base font-black tracking-tight" style={{ color: t.text.primary }}>
+          Prognum
+        </span>
+      </div>
 
-        {/* Ambientes conectados */}
-        {bancosConectados.length > 0 && (
-          <div className="space-y-1">
-            {bancosConectados.map((banco) => (
-              <div
-                key={banco.id}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-                style={{ backgroundColor: t.accent.yellowSubtle, border: `1px solid ${t.accent.yellow}25` }}
-              >
-                <div
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                  style={{ backgroundColor: banco.colors.bg }}
+      {/* ── Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+
+        {/* Filtros gerais */}
+        <section>
+          <SectionLabel>Filtros gerais</SectionLabel>
+
+          {/* Empresas */}
+          <div className="mb-3">
+            <FilterLabel>Empresas</FilterLabel>
+            <div className="space-y-1.5">
+              {visibleBanks.map((banco) => (
+                <BankChip
+                  key={banco.id}
+                  banco={banco}
+                  onRemove={() => toggleBanco(banco.id)}
+                />
+              ))}
+
+              {hiddenBanks.map((banco) => (
+                <button
+                  key={banco.id}
+                  onClick={() => toggleBanco(banco.id)}
+                  className="flex w-full items-center gap-2 rounded-lg border border-dashed border-[#E2E8F0] px-2.5 py-1.5 text-xs text-[#94A3B8] transition-colors hover:border-[#CBD5E1] hover:text-[#475569]"
                 >
-                  <span className="text-[8px] font-black text-white">
-                    {banco.id === 'c6' ? 'C6' : banco.name.slice(0, 2).toUpperCase()}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold truncate" style={{ color: t.accent.yellow }}>
-                    {banco.name}
-                  </p>
-                  <p className="text-[9px]" style={{ color: t.text.muted }}>
-                    {banco.dbType}
-                  </p>
-                </div>
-              </div>
-            ))}
+                  <Plus className="h-3.5 w-3.5 shrink-0" />
+                  Adicionar {banco.name}
+                </button>
+              ))}
+
+              {bancosConectados.length === 0 && (
+                <p className="px-1 text-xs text-[#CBD5E1]">Nenhum banco conectado</p>
+              )}
+            </div>
+          </div>
+
+          {/* Consolidação */}
+          <div className="mb-3">
+            <FilterLabel info>Consolidação</FilterLabel>
+            <div
+              className="grid grid-cols-2 gap-1 rounded-lg p-1"
+              style={{ backgroundColor: t.bg.base }}
+            >
+              {([['consolidado', 'Consolidado'], ['empresa', 'Por empresa']] as const).map(([val, lbl]) => (
+                <button
+                  key={val}
+                  onClick={() => setConsolidacao(val)}
+                  className="rounded-md px-2 py-1.5 text-xs transition-all"
+                  style={{
+                    backgroundColor: consolidacao === val ? '#FFFFFF' : 'transparent',
+                    color: consolidacao === val ? t.text.primary : t.text.muted,
+                    fontWeight: consolidacao === val ? 600 : 400,
+                    boxShadow: consolidacao === val ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  }}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Período */}
+          <div className="mb-3">
+            <FilterLabel>Período</FilterLabel>
+            <PeriodPicker t={t} />
+          </div>
+
+          {/* Comparar com */}
+          <div className="mb-3">
+            <FilterLabel>Comparar com</FilterLabel>
+            <button className="flex w-full items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs text-[#0F172A] transition-colors hover:border-[#CBD5E1]">
+              Período anterior
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />
+            </button>
+          </div>
+
+          {/* Mais filtros */}
+          <button
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-medium transition-colors"
+            style={{ borderColor: t.border.default, color: t.text.muted }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#CBD5E1';
+              (e.currentTarget as HTMLElement).style.color = t.text.secondary;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = t.border.default;
+              (e.currentTarget as HTMLElement).style.color = t.text.muted;
+            }}
+          >
+            ⛛ Mais filtros
+          </button>
+        </section>
+
+        {/* Dados por banco */}
+        {bancosCache.length > 0 && (
+          <section>
+            <SectionLabel>Dados</SectionLabel>
+            <div className="space-y-2">
+              {bancosCache.map((bs) => {
+                const chip = CHIP[bs.id] ?? { bg: bs.colors.bg, fg: bs.colors.text, label: bs.name.slice(0, 2).toUpperCase() };
+                return (
+                  <div
+                    key={bs.id}
+                    className="rounded-xl p-3 space-y-2"
+                    style={{ backgroundColor: t.bg.base, border: `1px solid ${t.border.default}` }}
+                  >
+                    {/* Bank + status */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
+                        style={{ backgroundColor: chip.bg, color: chip.fg }}
+                      >
+                        {chip.label}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold leading-none" style={{ color: t.text.primary }}>{bs.name}</p>
+                        {bs.lastUpdated ? (
+                          <p className="mt-0.5 text-[10px] leading-none truncate" style={{ color: bs.fromCache ? '#F59E0B' : t.text.muted }}>
+                            {bs.fromCache ? '● cache · ' : ''}{bs.lastUpdated}
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[10px] leading-none" style={{ color: t.text.muted }}>sem cache</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Limit + refresh */}
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={bs.limite}
+                        onChange={(e) => setLimiteBanco(bs.id, Number(e.target.value))}
+                        disabled={bs.refreshing}
+                        className="flex-1 rounded-md px-2 py-1 text-[11px] focus:outline-none"
+                        style={{ backgroundColor: t.bg.surface, color: t.text.secondary, border: `1px solid ${t.border.default}` }}
+                      >
+                        {LIMITE_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt >= 1000 ? `${opt / 1000}k` : opt} registros</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => fetchBanco(bs.id)}
+                        disabled={bs.refreshing}
+                        className="flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                        style={{
+                          backgroundColor: t.accent.primary,
+                          color: '#FFFFFF',
+                          opacity: bs.refreshing ? 0.6 : 1,
+                          cursor: bs.refreshing ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        <RefreshCw size={10} className={bs.refreshing ? 'animate-spin' : ''} />
+                        {bs.refreshing ? 'Buscando...' : 'Atualizar'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Navegação */}
+        <nav>
+          <SectionLabel>Navegação</SectionLabel>
+          <div className="space-y-0.5">
+            {NAV.map(({ href, label, icon, soon }) => {
+              const active = !soon && (pathname === href || pathname.startsWith(href + '/'));
+              return (
+                <NavItem
+                  key={href}
+                  href={href}
+                  label={label}
+                  icon={icon}
+                  active={active}
+                  soon={soon}
+                  t={t}
+                />
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+
+      {/* ── Footer */}
+      <div
+        className="px-3 pb-4 pt-3"
+        style={{ borderTop: `1px solid ${t.border.subtle}` }}
+      >
+        {credentials && (
+          <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 mb-1">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+              style={{ backgroundColor: `${t.accent.primary}18`, color: t.accent.primary }}
+            >
+              {credentials.login[0]?.toUpperCase() ?? 'U'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>
+                {credentials.login}
+              </p>
+              <p className="text-[10px]" style={{ color: t.text.muted }}>
+                {visibleBanks.map((b) => b.name).join(' · ') || 'Sem banco ativo'}
+              </p>
+            </div>
           </div>
         )}
-      </div>
 
-      {/* Subtítulo do sistema */}
-      <div className="px-4 py-3" style={{ borderBottom: `1px solid ${t.border.subtle}` }}>
-        <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: t.text.muted }}>
-          Métricas AG31
-        </p>
-        <p className="text-[9px] mt-0.5" style={{ color: t.text.muted }}>
-          SCCI / FCVS
-        </p>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {navItems.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors"
-              style={{
-                backgroundColor: active ? t.sidebar.activeBg : 'transparent',
-                color: active ? t.sidebar.activeText : t.sidebar.text,
-                fontWeight: active ? 600 : 400,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = t.sidebar.hoverBg;
-              }}
-              onMouseLeave={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-              }}
-            >
-              <Icon size={16} />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Rodapé */}
-      <div className="px-2 pb-4" style={{ borderTop: `1px solid ${t.border.subtle}`, paddingTop: '12px' }}>
-        {credentials && (
-          <p className="px-3 mb-2 text-[11px] truncate" style={{ color: t.text.muted }}>
-            {credentials.login}
-          </p>
-        )}
         <button
           onClick={disconnect}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all"
           style={{ color: t.sidebar.text }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = '#EF444415';
-            (e.currentTarget as HTMLElement).style.color = '#EF4444';
+            (e.currentTarget as HTMLElement).style.backgroundColor = '#FEF2F2';
+            (e.currentTarget as HTMLElement).style.color = '#DC2626';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
             (e.currentTarget as HTMLElement).style.color = t.sidebar.text;
           }}
         >
-          <LogOut size={16} />
-          {STRINGS.nav.logout}
+          <LogOut size={15} strokeWidth={1.8} />
+          Sair
         </button>
       </div>
     </aside>

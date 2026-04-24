@@ -31,11 +31,28 @@ export interface TempoFase {
   tempoMedioDias: number;
 }
 
+export interface EvolucaoMensal {
+  mes: string;
+  label: string;
+  iniciadas: number;
+  concluidas: number;
+  canceladas: number;
+  emFila: number;
+  taxaConversao: number;
+  tempoMedio: number | null;
+}
+
 export interface DashboardKpis {
   totalRegistros: number;
   operacoesUnicas: number;
   fasesUnicas: number;
   topUsuario: string;
+  operacoesIniciadas: number;
+  operacoesConcluidas: number;
+  operacoesCanceladas: number;
+  operacoesEmFila: number;
+  taxaConversao: number;
+  tempoMedioTotal: number | null;
 }
 
 export interface DashboardData {
@@ -44,6 +61,7 @@ export interface DashboardData {
   tempoMedioPorFase: TempoFase[];
   topUsuarios: UsuarioData[];
   distribuicaoFases: FaseCount[];
+  evolucaoMensal: EvolucaoMensal[];
   kpis: DashboardKpis;
   colunas: string[];
   primeiraLinha: TabelaRow | null;
