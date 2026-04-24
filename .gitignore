@@ -17,6 +17,9 @@ env/
 *.xlsx
 *.xls
 
+# Cache de dados por banco
+metricas_*.json
+
 # OS
 .DS_Store
 Thumbs.db
