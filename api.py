@@ -1,7 +1,9 @@
 import os
+import json
 import pandas as pd
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import get_connection, listar_tabelas
 
@@ -195,17 +197,16 @@ def executar_query(
 
 @app.get("/cache")
 def get_cache(banco: str = Query(default='c6')):
-    import json
     path = CACHE_FILES.get(banco)
     if not path:
         raise HTTPException(status_code=400, detail=f"Banco '{banco}' inválido. Use: {list(CACHE_FILES.keys())}")
     if not os.path.exists(path):
         return {"existe": False, "banco": banco, "dados": [], "total": 0, "savedAt": None}
     try:
-        with open(path, 'r', encoding='utf-8') as f:
-            payload = json.load(f)
-        saved_at = datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
-        return {"existe": True, "banco": banco, "dados": payload["dados"], "total": len(payload["dados"]), "savedAt": saved_at}
+        # Serve raw bytes — zero parsing, zero re-serialization
+        with open(path, 'rb') as f:
+            raw = f.read()
+        return Response(content=raw, media_type='application/json')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -248,10 +249,12 @@ def refresh_cache(
         df['NO_FASE_WEB'] = df['NU_FASE_OPERACAO'].map(FASE_WEB).fillna('Desconhecida')
 
         dados = df.to_dict(orient="records")
+        saved_at = datetime.now().isoformat()
+        payload = {"existe": True, "banco": banco, "dados": dados, "total": len(dados), "savedAt": saved_at}
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump({"dados": dados}, f, ensure_ascii=False, default=str)
+            json.dump(payload, f, ensure_ascii=False, default=str)
 
-        return {"banco": banco, "dados": dados, "total": len(dados), "savedAt": datetime.now().isoformat()}
+        return payload
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

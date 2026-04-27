@@ -2,11 +2,8 @@ fdb
 pymssql
 fastapi
 uvicorn
-streamlit
 pandas
-plotly
 python-dotenv
 requests
-openpyxl
 sshtunnel
 paramiko==2.12.0
