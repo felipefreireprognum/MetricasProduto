@@ -5,12 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, GitCompareArrows, ListChecks, TrendingDown,
-  Activity, LineChart, FileBarChart2, ChevronDown, Plus, X,
-  Info, LogOut, Calendar, Check, RefreshCw,
+  Table2, LineChart, FileBarChart2, ChevronDown, Plus, X,
+  Info, LogOut, Calendar, Check, Database, Sheet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFilters, PERIODO_PRESETS, type PeriodoPreset } from '@/contexts/FiltersContext';
-import { useCache, LIMITE_OPTIONS } from '@/contexts/CacheContext';
 import { ROUTES } from '@/constants/routes';
 import type { BankConfig } from '@/constants/banks';
 import type { BankTokens } from '@/theme/tokens';
@@ -18,29 +17,16 @@ import type { BankTokens } from '@/theme/tokens';
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { href: ROUTES.DASHBOARD,   label: 'Visão Geral',      icon: LayoutDashboard,  soon: false },
-  { href: ROUTES.COMPARATIVO, label: 'Comparativo',      icon: GitCompareArrows, soon: true  },
-  { href: ROUTES.FASES,       label: 'Análise por Fase', icon: ListChecks,       soon: false },
-  { href: ROUTES.ABANDONO,    label: 'Abandono',         icon: TrendingDown,     soon: true  },
-  { href: ROUTES.TABELAS,     label: 'Operações',        icon: Activity,         soon: false },
-  { href: ROUTES.TENDENCIAS,  label: 'Tendências',       icon: LineChart,        soon: true  },
-  { href: ROUTES.RELATORIOS,  label: 'Relatórios',       icon: FileBarChart2,    soon: true  },
+  { href: ROUTES.DASHBOARD,   label: 'Visão Geral',  icon: LayoutDashboard,  soon: false },
+  { href: ROUTES.FASES,       label: 'Por Fase',     icon: ListChecks,       soon: false },
+  { href: ROUTES.EXPLORER,    label: 'BD Métricas',  icon: Sheet,            soon: false },
+  { href: ROUTES.DADOS,       label: 'Fontes',       icon: Database,         soon: false },
+  { href: ROUTES.TABELAS,     label: 'Consulta BD',  icon: Table2,           soon: false },
+  { href: ROUTES.COMPARATIVO, label: 'Comparativo',  icon: GitCompareArrows, soon: true  },
+  { href: ROUTES.ABANDONO,    label: 'Abandono',     icon: TrendingDown,     soon: true  },
+  { href: ROUTES.TENDENCIAS,  label: 'Tendências',   icon: LineChart,        soon: true  },
+  { href: ROUTES.RELATORIOS,  label: 'Relatórios',   icon: FileBarChart2,    soon: true  },
 ];
-
-// ── Bank chip colors ──────────────────────────────────────────────────────────
-
-const CHIP: Record<string, { bg: string; fg: string; label: string }> = {
-  c6:    { bg: '#111827', fg: '#FFFFFF', label: 'C6'  },
-  inter: { bg: '#FF8700', fg: '#FFFFFF', label: 'in'  },
-};
-
-function chipStyle(banco: BankConfig) {
-  return CHIP[banco.id] ?? {
-    bg: banco.colors.bg,
-    fg: banco.colors.text,
-    label: banco.name.slice(0, 2).toUpperCase(),
-  };
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -61,8 +47,17 @@ function FilterLabel({ children, info }: { children: React.ReactNode; info?: boo
   );
 }
 
+const CHIP_COLORS: Record<string, { bg: string; fg: string; label: string }> = {
+  c6:    { bg: '#111827', fg: '#FFFFFF', label: 'C6' },
+  inter: { bg: '#FF8700', fg: '#FFFFFF', label: 'IN' },
+};
+
 function BankChip({ banco, onRemove }: { banco: BankConfig; onRemove: () => void }) {
-  const c = chipStyle(banco);
+  const c = CHIP_COLORS[banco.id] ?? {
+    bg: banco.colors.bg,
+    fg: banco.colors.text,
+    label: banco.name.slice(0, 2).toUpperCase(),
+  };
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1.5">
       <div className="flex items-center gap-2 min-w-0">
@@ -206,7 +201,6 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { credentials, disconnect, bancosConectados, tokens: t } = useAuth();
   const { removedBancoIds, toggleBanco } = useFilters();
-  const { bancosCache, fetchBanco, setLimiteBanco } = useCache();
 
   const [consolidacao, setConsolidacao] = useState<'consolidado' | 'empresa'>('consolidado');
 
@@ -326,74 +320,6 @@ export default function Sidebar() {
             ⛛ Mais filtros
           </button>
         </section>
-
-        {/* Dados por banco */}
-        {bancosCache.length > 0 && (
-          <section>
-            <SectionLabel>Dados</SectionLabel>
-            <div className="space-y-2">
-              {bancosCache.map((bs) => {
-                const chip = CHIP[bs.id] ?? { bg: bs.colors.bg, fg: bs.colors.text, label: bs.name.slice(0, 2).toUpperCase() };
-                return (
-                  <div
-                    key={bs.id}
-                    className="rounded-xl p-3 space-y-2"
-                    style={{ backgroundColor: t.bg.base, border: `1px solid ${t.border.default}` }}
-                  >
-                    {/* Bank + status */}
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[9px] font-bold"
-                        style={{ backgroundColor: chip.bg, color: chip.fg }}
-                      >
-                        {chip.label}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold leading-none" style={{ color: t.text.primary }}>{bs.name}</p>
-                        {bs.lastUpdated ? (
-                          <p className="mt-0.5 text-[10px] leading-none truncate" style={{ color: bs.fromCache ? '#F59E0B' : t.text.muted }}>
-                            {bs.fromCache ? '● cache · ' : ''}{bs.lastUpdated}
-                          </p>
-                        ) : (
-                          <p className="mt-0.5 text-[10px] leading-none" style={{ color: t.text.muted }}>sem cache</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Limit + refresh */}
-                    <div className="flex items-center gap-1.5">
-                      <select
-                        value={bs.limite}
-                        onChange={(e) => setLimiteBanco(bs.id, Number(e.target.value))}
-                        disabled={bs.refreshing}
-                        className="flex-1 rounded-md px-2 py-1 text-[11px] focus:outline-none"
-                        style={{ backgroundColor: t.bg.surface, color: t.text.secondary, border: `1px solid ${t.border.default}` }}
-                      >
-                        {LIMITE_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt >= 1000 ? `${opt / 1000}k` : opt} registros</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => fetchBanco(bs.id)}
-                        disabled={bs.refreshing}
-                        className="flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors"
-                        style={{
-                          backgroundColor: t.accent.primary,
-                          color: '#FFFFFF',
-                          opacity: bs.refreshing ? 0.6 : 1,
-                          cursor: bs.refreshing ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        <RefreshCw size={10} className={bs.refreshing ? 'animate-spin' : ''} />
-                        {bs.refreshing ? 'Buscando...' : 'Atualizar'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
         {/* Navegação */}
         <nav>

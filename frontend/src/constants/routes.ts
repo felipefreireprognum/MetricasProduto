@@ -1,12 +1,14 @@
 export const ROUTES = {
   LOGIN:           '/',
   DASHBOARD:       '/dashboard',
+  DADOS:           '/dados',
+  EXPLORER:        '/explorer',
+  FASES:           '/fases',
   TABELAS:         '/tabelas',
   AG31:            '/ag31',
   AG31_COMPARATIVO:'/ag31/comparativo',
-  // Novas páginas (em desenvolvimento)
+  // Em desenvolvimento
   COMPARATIVO:     '/comparativo',
-  FASES:           '/fases',
   ABANDONO:        '/abandono',
   TENDENCIAS:      '/tendencias',
   RELATORIOS:      '/relatorios',

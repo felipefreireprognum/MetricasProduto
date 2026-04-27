@@ -3,6 +3,7 @@ pymssql
 fastapi
 uvicorn
 pandas
+pyarrow
 python-dotenv
 requests
 sshtunnel

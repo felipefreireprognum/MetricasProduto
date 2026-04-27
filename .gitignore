@@ -9,16 +9,13 @@ __pycache__/
 venv/
 env/
 
-# Streamlit
-.streamlit/
-
 # Dados exportados
 *.csv
 *.xlsx
 *.xls
 
-# Cache de dados por banco
-metricas_*.json
+# Warehouse local (Parquet por banco/ambiente)
+CONSULTAS/
 
 # OS
 .DS_Store

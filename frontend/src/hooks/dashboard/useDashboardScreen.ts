@@ -1,9 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useCache } from '@/contexts/CacheContext';
 import { useFilters } from '@/contexts/FiltersContext';
-import { buildDashboardData } from '@/utils/mappers/dashboardMapper';
 
 export function useDashboardScreen() {
   const { bancosCache, loading } = useCache();
@@ -11,23 +9,15 @@ export function useDashboardScreen() {
 
   const active = bancosCache.filter((b) => !removedBancoIds.includes(b.id));
 
-  const dataC6 = useMemo(() => {
-    const rows = active.find((b) => b.id === 'c6')?.rows ?? [];
-    return rows.length ? buildDashboardData(rows) : null;
-  }, [active]);
+  const dataC6    = active.find((b) => b.id === 'c6')?.data    ?? null;
+  const dataInter = active.find((b) => b.id === 'inter')?.data ?? null;
 
-  const dataInter = useMemo(() => {
-    const rows = active.find((b) => b.id === 'inter')?.rows ?? [];
-    return rows.length ? buildDashboardData(rows) : null;
-  }, [active]);
+  // Global: single active bank → use its data directly
+  // Multi-bank combination is handled by the backend /dashboard/global endpoint (future)
+  const dataGlobal = active.length === 1 ? (active[0]?.data ?? null) : (active[0]?.data ?? null);
 
-  const dataGlobal = useMemo(() => {
-    const all = active.flatMap((b) => b.rows);
-    return all.length ? buildDashboardData(all) : null;
-  }, [active]);
-
-  const hasData   = !!dataGlobal;
-  const fromCache = active.some((b) => b.fromCache);
+  const hasData    = !!dataGlobal;
+  const fromCache  = active.some((b) => b.fromCache);
   const lastUpdated = active
     .map((b) => b.lastUpdated)
     .filter(Boolean)
