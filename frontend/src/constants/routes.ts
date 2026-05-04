@@ -7,6 +7,8 @@ export const ROUTES = {
   TABELAS:         '/tabelas',
   AG31:            '/ag31',
   AG31_COMPARATIVO:'/ag31/comparativo',
+  RANKINGS:        '/rankings',
+  JORNADA:         '/jornada',
   // Em desenvolvimento
   COMPARATIVO:     '/comparativo',
   ABANDONO:        '/abandono',

@@ -1,7 +1,8 @@
 'use client';
 
-import { AlertCircle, User, KeyRound, BarChart3, Database, TrendingUp, Building2 } from 'lucide-react';
+import { AlertCircle, User, KeyRound, BarChart3, Database, TrendingUp } from 'lucide-react';
 import { useLoginForm } from '@/hooks/auth/useLoginForm';
+import prognumLogo from '@/assets/prognumlogo.webp';
 
 // ── Feature list shown on the left panel ──────────────────────────────────────
 
@@ -53,21 +54,18 @@ export default function LoginScreen() {
         <div className="relative z-10 flex flex-col justify-between h-full p-12">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl"
-              style={{ background: 'linear-gradient(135deg, #1A5FFF 0%, #0040CC 100%)', boxShadow: '0 0 0 1px rgba(255,255,255,0.12) inset' }}
+            <img
+              src={prognumLogo.src}
+              alt="Prognum"
+              className="h-8 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)', maxWidth: 160 }}
+            />
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+              style={{ backgroundColor: 'rgba(255,217,61,0.15)', color: '#FFD93D', border: '1px solid rgba(255,217,61,0.25)' }}
             >
-              <Building2 size={18} className="text-white" />
-            </div>
-            <div>
-              <span className="text-base font-black text-white tracking-tight">Prognum</span>
-              <span
-                className="ml-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                style={{ backgroundColor: 'rgba(255,217,61,0.15)', color: '#FFD93D', border: '1px solid rgba(255,217,61,0.25)' }}
-              >
-                AG31
-              </span>
-            </div>
+              AG31
+            </span>
           </div>
 
           {/* Headline */}
@@ -115,14 +113,13 @@ export default function LoginScreen() {
 
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden text-center">
-            <div
-              className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl"
-              style={{ background: 'linear-gradient(135deg, #1A5FFF 0%, #0040CC 100%)' }}
-            >
-              <Building2 size={20} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-black" style={{ color: '#0F172A' }}>Prognum</h1>
-            <div className="mx-auto mt-2 h-0.5 w-12 rounded-full" style={{ backgroundColor: '#FFD93D' }} />
+            <img
+              src={prognumLogo.src}
+              alt="Prognum"
+              className="mx-auto h-8 w-auto object-contain"
+              style={{ maxWidth: 160 }}
+            />
+            <div className="mx-auto mt-3 h-0.5 w-12 rounded-full" style={{ backgroundColor: '#FFD93D' }} />
           </div>
 
           {/* Heading */}
@@ -255,9 +252,13 @@ export default function LoginScreen() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs" style={{ color: '#CBD5E1' }}>
-            Prognum · SCCI / FCVS
-          </p>
+          <div className="mt-6 flex justify-center">
+            <img
+              src={prognumLogo.src}
+              alt="Prognum"
+              className="h-5 w-auto object-contain opacity-30"
+            />
+          </div>
         </div>
       </div>
 

@@ -20,7 +20,22 @@
       "WebFetch(domain:brandfetch.com)",
       "Bash(git push *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'chore: ignorar arquivos de cache de dados \\(*.csv, metricas_*.json\\) *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(del metricas_c6.json)",
+      "Bash(ls CONSULTAS/)",
+      "Bash(ls metricas_*.parquet)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('api.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(node -e \"const lr = require\\('lucide-react'\\); const icons = ['Scan','UserPlus','Landmark','MessageSquare','FileSearch','Wrench','PenLine','Unlock','HandshakeIcon','Building2','FileText','Settings2','FilePen','Key']; icons.forEach\\(i => console.log\\(i, !!lr[i]\\)\\)\")",
+      "PowerShell(Stop-Process *)",
+      "Bash(python -c \"import api; routes = [r.path for r in api.app.routes]; print\\('\\\\n'.join\\(routes\\)\\)\")",
+      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"instrumentation.ts\" } | Select-Object -First 30)",
+      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; npx tsc --noEmit 2>&1 | Select-String -NotMatch \"instrumentation\" | Select-Object -First 20 | ForEach-Object { $_.ToString\\(\\) })",
+      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; $out = npx tsc --noEmit 2>&1; $out | Where-Object { $_ -notmatch \"instrumentation\" })",
+      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; $r = npx tsc --noEmit 2>&1; Write-Host \\($r -join \"`n\"\\))"
     ]
   }
 }

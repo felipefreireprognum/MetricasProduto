@@ -28,6 +28,8 @@ export const PERIODO_PRESETS: PeriodoPreset[] = [
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
+export type Dimensao = 'operacoes' | 'cpf';
+
 interface FiltersContextValue {
   periodoInicio: string | null;
   periodoFim: string | null;
@@ -36,6 +38,8 @@ interface FiltersContextValue {
   removedBancoIds: string[];
   toggleBanco: (id: string) => void;
   isBancoRemovido: (id: string) => boolean;
+  dimensao: Dimensao;
+  setDimensao: (d: Dimensao) => void;
 }
 
 const FiltersContext = createContext<FiltersContextValue | null>(null);
@@ -43,6 +47,7 @@ const FiltersContext = createContext<FiltersContextValue | null>(null);
 export function FiltersProvider({ children }: { children: ReactNode }) {
   const [periodo, setPeriodoState] = useState<PeriodoPreset>(PERIODO_PRESETS[0]);
   const [removedBancoIds, setRemovedBancoIds] = useState<string[]>([]);
+  const [dimensao, setDimensao] = useState<Dimensao>('operacoes');
 
   const setPeriodo = (p: PeriodoPreset) => setPeriodoState(p);
 
@@ -63,6 +68,8 @@ export function FiltersProvider({ children }: { children: ReactNode }) {
         removedBancoIds,
         toggleBanco,
         isBancoRemovido,
+        dimensao,
+        setDimensao,
       }}
     >
       {children}

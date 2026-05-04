@@ -1,6 +1,7 @@
 'use client';
 
-import { RefreshCw, Database, Clock, AlertCircle, CheckCircle2, ServerOff, ChevronsDown } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, Database, Clock, AlertCircle, CheckCircle2, ServerOff, ChevronsDown, AlertTriangle } from 'lucide-react';
 import { useCache, LIMITE_OPTIONS } from '@/contexts/CacheContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -8,6 +9,73 @@ const CHIP: Record<string, { bg: string; fg: string; initials: string }> = {
   c6:    { bg: '#0D0D0D', fg: '#FFFFFF', initials: 'C6'  },
   inter: { bg: '#FF8700', fg: '#FFFFFF', initials: 'IN'  },
 };
+
+// ── Confirm Modal ─────────────────────────────────────────────────────────────
+
+type ConfirmAction = { type: 'atualizar' | 'expandir'; bancoId: string; bancoName: string; limite: number } | null;
+
+function ConfirmModal({
+  action, onConfirm, onCancel, t,
+}: {
+  action: NonNullable<ConfirmAction>;
+  onConfirm: () => void;
+  onCancel: () => void;
+  t: ReturnType<typeof useAuth>['tokens'];
+}) {
+  const isExpandir = action.type === 'expandir';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onCancel} />
+
+      {/* Card */}
+      <div
+        className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+        style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
+      >
+        {/* Icon */}
+        <div
+          className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl"
+          style={{ backgroundColor: isExpandir ? '#FFF7ED' : `${t.accent.primary}12` }}
+        >
+          <AlertTriangle size={20} style={{ color: isExpandir ? '#F97316' : t.accent.primary }} />
+        </div>
+
+        {/* Title */}
+        <h2 className="mb-1 text-base font-bold" style={{ color: t.text.primary }}>
+          {isExpandir ? 'Expandir histórico' : 'Atualizar dados'}
+        </h2>
+
+        {/* Description */}
+        <p className="mb-5 text-sm leading-relaxed" style={{ color: t.text.muted }}>
+          {isExpandir
+            ? <>Serão buscados <strong style={{ color: t.text.secondary }}>{action.limite / 1000}k registros anteriores</strong> ao mais antigo já salvo de <strong style={{ color: t.text.secondary }}>{action.bancoName}</strong>. A operação pode levar alguns minutos.</>
+            : <>Serão buscados os <strong style={{ color: t.text.secondary }}>{action.limite / 1000}k registros mais recentes</strong> de <strong style={{ color: t.text.secondary }}>{action.bancoName}</strong> e mesclados com o arquivo local. Nenhum dado existente será perdido.</>
+          }
+        </p>
+
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors"
+            style={{ borderColor: t.border.default, color: t.text.secondary }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-opacity"
+            style={{ backgroundColor: isExpandir ? '#F97316' : t.accent.primary }}
+          >
+            {isExpandir ? 'Expandir' : 'Atualizar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ bs }: { bs: ReturnType<typeof useCache>['bancosCache'][number] }) {
   if (bs.refreshing) {
@@ -45,9 +113,18 @@ function StatusBadge({ bs }: { bs: ReturnType<typeof useCache>['bancosCache'][nu
 export default function DadosScreen() {
   const { bancosCache, fetchBanco, expandBanco, setLimiteBanco } = useCache();
   const { tokens: t } = useAuth();
+  const [pending, setPending] = useState<ConfirmAction>(null);
+
+  function handleConfirm() {
+    if (!pending) return;
+    if (pending.type === 'atualizar') fetchBanco(pending.bancoId);
+    else expandBanco(pending.bancoId);
+    setPending(null);
+  }
 
   return (
     <div className="min-h-screen p-8" style={{ backgroundColor: t.bg.base }}>
+      {pending && <ConfirmModal action={pending} onConfirm={handleConfirm} onCancel={() => setPending(null)} t={t} />}
 
       {/* Header */}
       <div className="mb-8">
@@ -193,7 +270,7 @@ export default function DadosScreen() {
                 {/* Buttons */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => fetchBanco(bs.id)}
+                    onClick={() => setPending({ type: 'atualizar', bancoId: bs.id, bancoName: bs.name, limite: bs.limite })}
                     disabled={bs.refreshing}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-opacity"
                     style={{
@@ -207,7 +284,7 @@ export default function DadosScreen() {
                   </button>
 
                   <button
-                    onClick={() => expandBanco(bs.id)}
+                    onClick={() => setPending({ type: 'expandir', bancoId: bs.id, bancoName: bs.name, limite: bs.limite })}
                     disabled={bs.refreshing || !bs.data}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-opacity"
                     style={{

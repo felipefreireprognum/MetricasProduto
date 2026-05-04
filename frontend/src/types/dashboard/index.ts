@@ -10,9 +10,13 @@ export interface HistoricoOperacao {
 }
 
 export interface FaseCount {
-  fase: number;
-  nome: string;
-  total: number;
+  fase:         number;
+  nome:         string;
+  macrofase:    string;
+  total:        number;
+  abandono?:    number;
+  emAndamento?: number;
+  totalCpf?:    number;
 }
 
 export interface VolumeData {
@@ -26,8 +30,9 @@ export interface UsuarioData {
 }
 
 export interface TempoFase {
-  fase: number;
-  nome: string;
+  fase:           number;
+  nome:           string;
+  macrofase:      string;
   tempoMedioDias: number;
 }
 
@@ -40,6 +45,9 @@ export interface EvolucaoMensal {
   emFila: number;
   taxaConversao: number;
   tempoMedio: number | null;
+  iniciadasCpf?: number;
+  concluidasCpf?: number;
+  taxaConversaoCpf?: number;
 }
 
 export interface DashboardKpis {
@@ -53,16 +61,91 @@ export interface DashboardKpis {
   operacoesEmFila: number;
   taxaConversao: number;
   tempoMedioTotal: number | null;
+  // CPF metrics — present only after ETL with updated SQL
+  cpfsUnicos?: number;
+  cpfsConcluidos?: number;
+  cpfsReincidentes?: number;
+  pctReincidentes?: number;
+  taxaConversaoCpf?: number;
+  cpfsNovos?: number;
+  cpfsRetorno?: number;
+}
+
+export interface FaseTransicao {
+  de:       number;
+  para:     number;
+  paraNome: string;
+  qtd:      number;
+}
+
+export interface MacrofaseTotal {
+  macrofase: string;
+  total:     number;
+}
+
+export interface TopCpf {
+  cpf:   string;
+  total: number;
+}
+
+// ── Jornada da Pessoa ─────────────────────────────────────────────────────────
+
+export interface TentativaGrupo {
+  grupo:      string;
+  pessoas:    number;
+  concluidas: number;
+  conversao:  number;
+  operacoes?: number;
+}
+
+export interface ProgressoData {
+  melhorou:          number;
+  igual:             number;
+  piorou:            number;
+  converteuNa2a:     number;
+  totalReincidentes: number;
+}
+
+export interface QuebraFase {
+  fase:      number;
+  nome:      string;
+  macrofase: string;
+  pessoas:   number;
+  pct:       number;
+}
+
+export interface JornadaData {
+  semDados:               boolean;
+  totalCpfs:              number;
+  reincidentes:           number;
+  pctReincidentes:        number;
+  mediaOps:               number;
+  totalRetentativas?:     number;
+  pctRetentativas?:       number;
+  convPrimeiraTentativa:  number;
+  convReincidentes:       number;
+  totalQuebrou:           number;
+  tentativasDistribuicao: TentativaGrupo[];
+  primeiraQuebra:         QuebraFase[];
+  progresso?:             ProgressoData;
+  tempoEntreAtividades: {
+    mediana: number | null;
+    media:   number | null;
+    distribuicao: { faixa: string; total: number }[];
+  };
 }
 
 export interface DashboardData {
-  operacoesPorFase: FaseCount[];
-  volumePorData: VolumeData[];
+  operacoesPorFase:  FaseCount[];
+  volumePorData:     VolumeData[];
   tempoMedioPorFase: TempoFase[];
-  topUsuarios: UsuarioData[];
+  topUsuarios:       UsuarioData[];
+  topCpfs?:          TopCpf[];
   distribuicaoFases: FaseCount[];
-  evolucaoMensal: EvolucaoMensal[];
-  kpis: DashboardKpis;
-  colunas: string[];
-  primeiraLinha: TabelaRow | null;
+  evolucaoMensal:    EvolucaoMensal[];
+  kpis:              DashboardKpis;
+  colunas:           string[];
+  primeiraLinha:     TabelaRow | null;
+  transicoes:        FaseTransicao[];
+  macrofaseTotais:   MacrofaseTotal[];
 }

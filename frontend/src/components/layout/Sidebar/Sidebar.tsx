@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, GitCompareArrows, ListChecks, TrendingDown,
-  Table2, LineChart, FileBarChart2, ChevronDown, Plus, X,
-  Info, LogOut, Calendar, Check, Database, Sheet,
+  Table2, LineChart, FileBarChart2, Plus, X,
+  Info, LogOut, Database, Sheet, Trophy, Route,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFilters, PERIODO_PRESETS, type PeriodoPreset } from '@/contexts/FiltersContext';
+import prognumLogo from '@/assets/prognumlogo.webp';
+import { useFilters } from '@/contexts/FiltersContext';
 import { ROUTES } from '@/constants/routes';
 import type { BankConfig } from '@/constants/banks';
 import type { BankTokens } from '@/theme/tokens';
@@ -19,12 +20,14 @@ import type { BankTokens } from '@/theme/tokens';
 const NAV = [
   { href: ROUTES.DASHBOARD,   label: 'Visão Geral',  icon: LayoutDashboard,  soon: false },
   { href: ROUTES.FASES,       label: 'Por Fase',     icon: ListChecks,       soon: false },
+  { href: ROUTES.TENDENCIAS,  label: 'Tendências',   icon: LineChart,        soon: false },
+  { href: ROUTES.RANKINGS,    label: 'Rankings',     icon: Trophy,           soon: false },
+  { href: ROUTES.JORNADA,     label: 'Jornada',      icon: Route,            soon: false },
   { href: ROUTES.EXPLORER,    label: 'BD Métricas',  icon: Sheet,            soon: false },
   { href: ROUTES.DADOS,       label: 'Fontes',       icon: Database,         soon: false },
   { href: ROUTES.TABELAS,     label: 'Consulta BD',  icon: Table2,           soon: false },
   { href: ROUTES.COMPARATIVO, label: 'Comparativo',  icon: GitCompareArrows, soon: true  },
   { href: ROUTES.ABANDONO,    label: 'Abandono',     icon: TrendingDown,     soon: true  },
-  { href: ROUTES.TENDENCIAS,  label: 'Tendências',   icon: LineChart,        soon: true  },
   { href: ROUTES.RELATORIOS,  label: 'Relatórios',   icon: FileBarChart2,    soon: true  },
 ];
 
@@ -142,58 +145,6 @@ function NavItem({
   );
 }
 
-// ── Period picker ─────────────────────────────────────────────────────────────
-
-function PeriodPicker({ t }: { t: BankTokens }) {
-  const { periodoLabel, setPeriodo } = useFilters();
-  const [open, setOpen] = useState(false);
-
-  const select = (preset: PeriodoPreset) => {
-    setPeriodo(preset);
-    setOpen(false);
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs text-[#0F172A] transition-colors hover:border-[#CBD5E1]"
-      >
-        <span className="flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-[#94A3B8]" />
-          {periodoLabel}
-        </span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[#94A3B8] transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          {/* Dropdown */}
-          <div
-            className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg py-1 shadow-lg"
-            style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
-          >
-            {PERIODO_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                onClick={() => select(preset)}
-                className="flex w-full items-center justify-between px-3 py-2 text-xs transition-colors hover:bg-[#F8F9FC]"
-                style={{ color: t.text.primary }}
-              >
-                {preset.label}
-                {preset.label === periodoLabel && (
-                  <Check className="h-3 w-3" style={{ color: t.accent.primary }} />
-                )}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
@@ -201,8 +152,6 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { credentials, disconnect, bancosConectados, tokens: t } = useAuth();
   const { removedBancoIds, toggleBanco } = useFilters();
-
-  const [consolidacao, setConsolidacao] = useState<'consolidado' | 'empresa'>('consolidado');
 
   const visibleBanks = bancosConectados.filter((b) => !removedBancoIds.includes(b.id));
   const hiddenBanks  = bancosConectados.filter((b) =>  removedBancoIds.includes(b.id));
@@ -214,27 +163,22 @@ export default function Sidebar() {
     >
       {/* ── Logo */}
       <div
-        className="flex items-center gap-2.5 px-5 pt-5 pb-4"
+        className="flex items-center px-5 pt-5 pb-4"
         style={{ borderBottom: `1px solid ${t.border.subtle}` }}
       >
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-black text-[13px] text-white"
-          style={{ background: 'linear-gradient(135deg,#1A5FFF 0%,#0A2E8A 100%)' }}
-        >
-          P
-        </div>
-        <span className="text-base font-black tracking-tight" style={{ color: t.text.primary }}>
-          Prognum
-        </span>
+        <img
+          src={prognumLogo.src}
+          alt="Prognum"
+          className="h-7 w-auto object-contain"
+          style={{ maxWidth: 160 }}
+        />
       </div>
 
       {/* ── Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 
-        {/* Filtros gerais */}
+        {/* Filtros */}
         <section>
-          <SectionLabel>Filtros gerais</SectionLabel>
-
           {/* Empresas */}
           <div className="mb-3">
             <FilterLabel>Empresas</FilterLabel>
@@ -264,61 +208,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Consolidação */}
-          <div className="mb-3">
-            <FilterLabel info>Consolidação</FilterLabel>
-            <div
-              className="grid grid-cols-2 gap-1 rounded-lg p-1"
-              style={{ backgroundColor: t.bg.base }}
-            >
-              {([['consolidado', 'Consolidado'], ['empresa', 'Por empresa']] as const).map(([val, lbl]) => (
-                <button
-                  key={val}
-                  onClick={() => setConsolidacao(val)}
-                  className="rounded-md px-2 py-1.5 text-xs transition-all"
-                  style={{
-                    backgroundColor: consolidacao === val ? '#FFFFFF' : 'transparent',
-                    color: consolidacao === val ? t.text.primary : t.text.muted,
-                    fontWeight: consolidacao === val ? 600 : 400,
-                    boxShadow: consolidacao === val ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                  }}
-                >
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Período */}
-          <div className="mb-3">
-            <FilterLabel>Período</FilterLabel>
-            <PeriodPicker t={t} />
-          </div>
-
-          {/* Comparar com */}
-          <div className="mb-3">
-            <FilterLabel>Comparar com</FilterLabel>
-            <button className="flex w-full items-center justify-between rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs text-[#0F172A] transition-colors hover:border-[#CBD5E1]">
-              Período anterior
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#94A3B8]" />
-            </button>
-          </div>
-
-          {/* Mais filtros */}
-          <button
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs font-medium transition-colors"
-            style={{ borderColor: t.border.default, color: t.text.muted }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = '#CBD5E1';
-              (e.currentTarget as HTMLElement).style.color = t.text.secondary;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = t.border.default;
-              (e.currentTarget as HTMLElement).style.color = t.text.muted;
-            }}
-          >
-            ⛛ Mais filtros
-          </button>
         </section>
 
         {/* Navegação */}

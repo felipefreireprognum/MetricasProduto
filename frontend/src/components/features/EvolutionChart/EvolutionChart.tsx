@@ -59,16 +59,21 @@ function ChartTooltip({ active, payload, label }: any) {
 interface Props {
   data: EvolucaoMensal[];
   tokens: BankTokens;
+  dimensao?: 'operacoes' | 'cpf';
 }
 
-export function EvolutionChart({ data, tokens: t }: Props) {
+export function EvolutionChart({ data, tokens: t, dimensao = 'operacoes' }: Props) {
   const [metrica, setMetrica]       = useState<MetricaId>('iniciadas');
   const [metricaOpen, setMetricaOpen] = useState(false);
 
   if (!data.length) return null;
 
+  const isCpf = dimensao === 'cpf';
+  const iniciadas_key = isCpf ? 'iniciadasCpf' : 'iniciadas';
+  const conversao_key = isCpf ? 'taxaConversaoCpf' : 'taxaConversao';
+
   const METRICAS: { id: MetricaId; label: string }[] = [
-    { id: 'iniciadas', label: 'Operações iniciadas' },
+    { id: 'iniciadas', label: isCpf ? 'Pessoas únicas' : 'Operações iniciadas' },
     { id: 'conversao', label: 'Conversão (%)' },
     { id: 'tempo',     label: 'Tempo médio (dias)' },
   ];
@@ -77,8 +82,8 @@ export function EvolutionChart({ data, tokens: t }: Props) {
   // Left-axis domain: based on selected primary metric
   const leftMax = (() => {
     const vals = data.map((d) =>
-      metrica === 'iniciadas' ? d.iniciadas :
-      metrica === 'conversao' ? d.taxaConversao :
+      metrica === 'iniciadas' ? (isCpf ? (d.iniciadasCpf ?? 0) : d.iniciadas) :
+      metrica === 'conversao' ? (isCpf ? (d.taxaConversaoCpf ?? 0) : d.taxaConversao) :
       (d.tempoMedio ?? 0)
     );
     return Math.ceil(Math.max(...vals) * 1.3) || 10;
@@ -91,8 +96,8 @@ export function EvolutionChart({ data, tokens: t }: Props) {
 
   // For bar key when primary metric changes
   const barDataKey =
-    metrica === 'iniciadas' ? 'iniciadas' :
-    metrica === 'conversao' ? 'taxaConversao' : 'tempoMedio';
+    metrica === 'iniciadas' ? iniciadas_key :
+    metrica === 'conversao' ? conversao_key : 'tempoMedio';
 
   const barColor =
     metrica === 'iniciadas' ? CLR.iniciadas :
@@ -156,7 +161,7 @@ export function EvolutionChart({ data, tokens: t }: Props) {
       <div className="mb-3 flex flex-wrap items-center gap-4 text-[11px]" style={{ color: t.text.muted }}>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CLR.iniciadas }} />
-          Operações iniciadas
+          {isCpf ? 'Pessoas únicas' : 'Operações iniciadas'}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-[2px] w-3 rounded-full" style={{ backgroundColor: CLR.conversao }} />
@@ -211,7 +216,7 @@ export function EvolutionChart({ data, tokens: t }: Props) {
               <Line
                 yAxisId="right"
                 type="monotone"
-                dataKey="taxaConversao"
+                dataKey={conversao_key}
                 name="taxaConversao"
                 stroke={CLR.conversao}
                 strokeWidth={2}
@@ -252,10 +257,22 @@ export function EvolutionChart({ data, tokens: t }: Props) {
             </thead>
             <tbody>
               {([
-                { clr: CLR.iniciadas, label: 'Operações iniciadas', fmt: (d: EvolucaoMensal) => d.iniciadas.toLocaleString('pt-BR') },
-                { clr: CLR.conversao, label: 'Conversão (%)',       fmt: (d: EvolucaoMensal) => `${d.taxaConversao.toFixed(1)}%` },
-                { clr: CLR.tempo,     label: 'Tempo médio (dias)',  fmt: (d: EvolucaoMensal) => d.tempoMedio != null ? d.tempoMedio.toFixed(1) : '—' },
-              ] as const).map(({ clr, label, fmt }, idx, arr) => (
+                {
+                  clr: CLR.iniciadas,
+                  label: isCpf ? 'Pessoas únicas' : 'Operações iniciadas',
+                  fmt: (d: EvolucaoMensal) => (isCpf ? (d.iniciadasCpf ?? 0) : d.iniciadas).toLocaleString('pt-BR'),
+                },
+                {
+                  clr: CLR.conversao,
+                  label: 'Conversão (%)',
+                  fmt: (d: EvolucaoMensal) => `${(isCpf ? (d.taxaConversaoCpf ?? 0) : d.taxaConversao).toFixed(1)}%`,
+                },
+                {
+                  clr: CLR.tempo,
+                  label: 'Tempo médio (dias)',
+                  fmt: (d: EvolucaoMensal) => d.tempoMedio != null ? d.tempoMedio.toFixed(1) : '—',
+                },
+              ]).map(({ clr, label, fmt }, idx, arr) => (
                 <tr
                   key={label}
                   style={{ borderBottom: idx < arr.length - 1 ? `1px dashed ${t.border.default}` : 'none' }}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, Check } from 'lucide-react';
 import { BANKS } from '@/constants/banks';
+import { useFilters } from '@/contexts/FiltersContext';
 import type { DashboardData } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
 
@@ -32,12 +33,13 @@ interface Props {
 function toRow(
   id: string, nome: string, initials: string, color: string,
   data: DashboardData,
+  isCpf: boolean,
 ): EmpresaRow {
   const k = data.kpis;
   return {
     id, nome, initials, color,
-    ops:      k.operacoesIniciadas,
-    conv:     k.taxaConversao,
+    ops:      isCpf ? (k.cpfsUnicos ?? k.operacoesIniciadas) : k.operacoesIniciadas,
+    conv:     isCpf ? (k.taxaConversaoCpf ?? k.taxaConversao) : k.taxaConversao,
     tempo:    k.tempoMedioTotal,
     abandono: k.operacoesIniciadas > 0
       ? (k.operacoesCanceladas / k.operacoesIniciadas) * 100
@@ -47,22 +49,17 @@ function toRow(
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: 'conv',     label: 'Conversão (%)' },
-  { id: 'ops',      label: 'Operações iniciadas' },
-  { id: 'tempo',    label: 'Tempo médio' },
-  { id: 'abandono', label: 'Taxa de abandono' },
-];
-
 export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
+  const { dimensao } = useFilters();
+  const isCpf = dimensao === 'cpf';
   const [sortBy, setSortBy]     = useState<SortKey>('conv');
   const [sortOpen, setSortOpen] = useState(false);
 
   const bankColor = (id: string) => BANKS.find((b) => b.id === id)?.colors.bg ?? '#64748B';
 
   const rows: EmpresaRow[] = [
-    dataC6    && toRow('c6',    'C6 Bank', 'C6', bankColor('c6'),    dataC6),
-    dataInter && toRow('inter', 'Inter',   'IN', bankColor('inter'), dataInter),
+    dataC6    && toRow('c6',    'C6 Bank', 'C6', bankColor('c6'),    dataC6,    isCpf),
+    dataInter && toRow('inter', 'Inter',   'IN', bankColor('inter'), dataInter, isCpf),
   ].filter(Boolean) as EmpresaRow[];
 
   const sorted = [...rows].sort((a, b) => {
@@ -72,8 +69,16 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
     return b.abandono - a.abandono;
   });
 
-  const DASH       = `1px dashed ${t.border.default}`;
-  const sortLabel  = SORT_OPTIONS.find((o) => o.id === sortBy)!.label;
+  const DASH      = `1px dashed ${t.border.default}`;
+  const colOps    = isCpf ? 'Pessoas únicas' : 'Operações iniciadas';
+  const colConv   = isCpf ? 'Conversão/pessoa' : 'Conversão (%)';
+  const sortOptions: { id: SortKey; label: string }[] = [
+    { id: 'conv',     label: colConv },
+    { id: 'ops',      label: colOps },
+    { id: 'tempo',    label: 'Tempo médio' },
+    { id: 'abandono', label: 'Taxa de abandono' },
+  ];
+  const sortLabel = sortOptions.find((o) => o.id === sortBy)!.label;
 
   if (!sorted.length) return null;
 
@@ -84,10 +89,17 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
     >
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold" style={{ color: t.text.primary }}>
-          Desempenho por empresa{' '}
-          <span className="font-normal" style={{ color: t.text.muted }}>(resumo)</span>
-        </h3>
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: t.text.primary }}>
+            Desempenho por empresa{' '}
+            <span className="font-normal" style={{ color: t.text.muted }}>(resumo)</span>
+          </h3>
+          {isCpf && (
+            <p className="text-[10px] mt-0.5" style={{ color: '#3B82F6' }}>
+              Métricas por pessoa (CPF)
+            </p>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: t.text.muted }}>Ordenar por</span>
@@ -111,7 +123,7 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
                   className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-lg py-1 shadow-lg"
                   style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
                 >
-                  {SORT_OPTIONS.map(({ id, label }) => (
+                  {sortOptions.map(({ id, label }) => (
                     <button
                       key={id}
                       onClick={() => { setSortBy(id); setSortOpen(false); }}
@@ -133,7 +145,7 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
       <table className="w-full" style={{ borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: DASH }}>
-            {(['Empresa', 'Operações iniciadas', 'Conversão (%)', 'Tempo médio (dias)', 'Taxa de abandono'] as const).map((col, i) => (
+            {(['Empresa', colOps, colConv, 'Tempo médio (dias)', 'Taxa de abandono']).map((col, i) => (
               <th
                 key={col}
                 className="pb-2 text-[11px] font-medium"
@@ -165,7 +177,7 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
                 </div>
               </td>
 
-              {/* Ops */}
+              {/* Ops / Pessoas */}
               <td className="py-3 text-right text-sm tabular-nums" style={{ color: t.text.primary }}>
                 {e.ops.toLocaleString('pt-BR')}
               </td>
