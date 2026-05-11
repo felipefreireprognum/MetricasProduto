@@ -79,8 +79,9 @@ export interface FaseTransicao {
 }
 
 export interface MacrofaseTotal {
-  macrofase: string;
-  total:     number;
+  macrofase:   string;
+  total:       number;
+  reprovados?: number;
 }
 
 export interface TopCpf {

@@ -59,8 +59,8 @@ export function PageHeaderBar({
             style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
           >
             {([
-              { id: 'operacoes', label: 'Operação', icon: Layers },
-              { id: 'cpf',       label: 'Pessoa',   icon: Users  },
+              { id: 'operacoes', label: 'Proposta', icon: Layers },
+              { id: 'cpf',       label: 'CPF',      icon: Users  },
             ] as const).map(({ id, label, icon: Icon }) => {
               const active = dimensao === id;
               return (

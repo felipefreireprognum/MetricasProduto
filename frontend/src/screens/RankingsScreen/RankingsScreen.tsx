@@ -375,7 +375,7 @@ export default function RankingsScreen() {
             <div className="grid grid-cols-2 gap-5 mb-5">
               <RankingCard
                 title="Abandono por Fase"
-                subtitle="Fases com mais operações canceladas"
+                subtitle="Fases com mais propostas canceladas"
                 icon={XCircle}
                 accentColor="#EF4444"
                 rows={buildAbandonoRows(dataGlobal.operacoesPorFase, dataGlobal.kpis.operacoesIniciadas)}
@@ -398,7 +398,7 @@ export default function RankingsScreen() {
               {dimensao === 'cpf' ? (
                 <RankingCard
                   title="Top Reincidentes"
-                  subtitle="CPFs com mais de uma operação no funil"
+                  subtitle="CPFs com mais de uma proposta no funil"
                   icon={RefreshCw}
                   accentColor="#F59E0B"
                   rows={buildReincidentesRows(dataGlobal.topCpfs ?? [])}
@@ -408,7 +408,7 @@ export default function RankingsScreen() {
               ) : (
                 <RankingCard
                   title="Top Usuários"
-                  subtitle="Volume de operações por usuário"
+                  subtitle="Volume de propostas por usuário"
                   icon={Users}
                   accentColor="#3B82F6"
                   rows={buildUsuariosRows(dataGlobal.topUsuarios)}
@@ -427,7 +427,7 @@ export default function RankingsScreen() {
               />
               <RankingCard
                 title={dimensao === 'cpf' ? 'Fases por CPFs Únicos' : 'Fases por Volume'}
-                subtitle={dimensao === 'cpf' ? 'Fases com mais pessoas únicas' : 'Fases com mais operações únicas'}
+                subtitle={dimensao === 'cpf' ? 'Fases com mais CPFs únicos' : 'Fases com mais propostas únicas'}
                 icon={BarChart2}
                 accentColor="#10B981"
                 rows={buildVolumeRows(dataGlobal.operacoesPorFase, dimensao === 'cpf')}

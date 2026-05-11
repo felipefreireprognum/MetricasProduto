@@ -70,8 +70,8 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
   });
 
   const DASH      = `1px dashed ${t.border.default}`;
-  const colOps    = isCpf ? 'Pessoas únicas' : 'Operações iniciadas';
-  const colConv   = isCpf ? 'Conversão/pessoa' : 'Conversão (%)';
+  const colOps    = isCpf ? 'CPFs únicos' : 'Propostas iniciadas';
+  const colConv   = isCpf ? 'Conversão/CPF' : 'Conversão (%)';
   const sortOptions: { id: SortKey; label: string }[] = [
     { id: 'conv',     label: colConv },
     { id: 'ops',      label: colOps },
@@ -96,7 +96,7 @@ export function CompanyPerformance({ dataC6, dataInter, tokens: t }: Props) {
           </h3>
           {isCpf && (
             <p className="text-[10px] mt-0.5" style={{ color: '#3B82F6' }}>
-              Métricas por pessoa (CPF)
+              Métricas por CPF
             </p>
           )}
         </div>

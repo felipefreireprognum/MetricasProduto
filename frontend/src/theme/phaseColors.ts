@@ -3,32 +3,38 @@
 
 /** Main accent color per macrofase (for dots, bars, text highlights). */
 export const MACROFASE_COLOR: Record<string, string> = {
-  'Simulação':             '#94A3B8',
-  'Cadastro':              '#3B82F6',
-  'Crédito':               '#8B5CF6',
-  'Negociação':            '#F59E0B',
-  'Análise de Documentos': '#EC4899',
-  'Análise Técnica':       '#F97316',
-  'Formalização':          '#10B981',
-  'Liberação':             '#06B6D4',
-  'Concluído':             '#16A34A',
-  'Cancelada':             '#EF4444',
-  'Desconhecida':          '#94A3B8',
+  'Simulação':              '#94A3B8',
+  'Cadastro':               '#3B82F6',
+  'Crédito':                '#8B5CF6',
+  'Negociação':             '#F59E0B',
+  'Análise de Documentos':  '#EC4899',
+  'Análise Técnica':        '#F97316',
+  'Emissão de Contrato':    '#10B981',
+  'Registro de Contratos':  '#06B6D4',
+  'Concluído':              '#16A34A',
+  'Cancelada':              '#EF4444',
+  'Desconhecida':           '#94A3B8',
+  // backward compat com Parquet antigo
+  'Formalização':           '#10B981',
+  'Liberação':              '#06B6D4',
 };
 
 /** Badge style (subtle bg + strong text) for inline macrofase pills. */
 export const MACROFASE_BADGE: Record<string, { bg: string; color: string }> = {
-  'Simulação':             { bg: '#F1F5F9', color: '#475569' },
-  'Cadastro':              { bg: '#EFF6FF', color: '#1D4ED8' },
-  'Crédito':               { bg: '#F5F3FF', color: '#6D28D9' },
-  'Negociação':            { bg: '#FFF7ED', color: '#C2410C' },
-  'Análise de Documentos': { bg: '#FAF5FF', color: '#7E22CE' },
-  'Análise Técnica':       { bg: '#EEF2FF', color: '#4338CA' },
-  'Formalização':          { bg: '#F0FDFA', color: '#0F766E' },
-  'Liberação':             { bg: '#ECFDF5', color: '#047857' },
-  'Concluído':             { bg: '#F0FDF4', color: '#166534' },
-  'Cancelada':             { bg: '#FFF1F2', color: '#BE123C' },
-  'Desconhecida':          { bg: '#F8FAFC', color: '#94A3B8' },
+  'Simulação':              { bg: '#F1F5F9', color: '#475569' },
+  'Cadastro':               { bg: '#EFF6FF', color: '#1D4ED8' },
+  'Crédito':                { bg: '#F5F3FF', color: '#6D28D9' },
+  'Negociação':             { bg: '#FFF7ED', color: '#C2410C' },
+  'Análise de Documentos':  { bg: '#FAF5FF', color: '#7E22CE' },
+  'Análise Técnica':        { bg: '#EEF2FF', color: '#4338CA' },
+  'Emissão de Contrato':    { bg: '#F0FDFA', color: '#0F766E' },
+  'Registro de Contratos':  { bg: '#ECFEFF', color: '#0E7490' },
+  'Concluído':              { bg: '#F0FDF4', color: '#166534' },
+  'Cancelada':              { bg: '#FFF1F2', color: '#BE123C' },
+  'Desconhecida':           { bg: '#F8FAFC', color: '#94A3B8' },
+  // backward compat com Parquet antigo
+  'Formalização':           { bg: '#F0FDFA', color: '#0F766E' },
+  'Liberação':              { bg: '#ECFEFF', color: '#0E7490' },
 };
 
 /** Pipeline stage order (excludes Cancelada which is a terminal state). */
@@ -39,16 +45,19 @@ export const PIPELINE_STAGES: { id: string; color: string }[] = [
   { id: 'Negociação',            color: MACROFASE_COLOR['Negociação']            },
   { id: 'Análise de Documentos', color: MACROFASE_COLOR['Análise de Documentos'] },
   { id: 'Análise Técnica',       color: MACROFASE_COLOR['Análise Técnica']       },
-  { id: 'Formalização',          color: MACROFASE_COLOR['Formalização']          },
-  { id: 'Liberação',             color: MACROFASE_COLOR['Liberação']             },
+  { id: 'Emissão de Contrato',   color: MACROFASE_COLOR['Emissão de Contrato']   },
+  { id: 'Registro de Contratos', color: MACROFASE_COLOR['Registro de Contratos'] },
   { id: 'Concluído',             color: MACROFASE_COLOR['Concluído']             },
 ];
 
 /** Ordered macrofase list for grouping / iteration. */
 export const MACROFASE_ORDER: string[] = [
   'Simulação', 'Cadastro', 'Crédito', 'Negociação',
-  'Análise de Documentos', 'Análise Técnica', 'Formalização',
-  'Liberação', 'Concluído', 'Cancelada',
+  'Análise de Documentos', 'Análise Técnica',
+  'Emissão de Contrato', 'Registro de Contratos',
+  'Concluído', 'Cancelada',
+  // backward compat
+  'Formalização', 'Liberação',
 ];
 
 // ── Banco colors ──────────────────────────────────────────────────────────────

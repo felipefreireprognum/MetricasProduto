@@ -139,11 +139,11 @@ function VolumeChart({ data, tokens: t, dimensao = 'operacoes' }: { data: Evoluc
     >
       <div className="mb-1">
         <h3 className="text-sm font-semibold" style={{ color: t.text.primary }}>
-          Volume mensal {isCpf ? 'por Pessoa (CPF)' : 'do funil'}
+          Volume mensal {isCpf ? 'por CPF' : 'do funil'}
         </h3>
         <p className="text-[11px] mt-0.5" style={{ color: t.text.muted }}>
           {isCpf
-            ? 'Pessoas únicas (barras) · Concluídas (linha) · Conversão por pessoa % (eixo direito)'
+            ? 'CPFs únicos (barras) · Concluídas (linha) · Conversão por CPF % (eixo direito)'
             : 'Iniciadas (barras) · Concluídas e Canceladas (linhas) · Conversão % (eixo direito)'}
         </p>
       </div>
@@ -151,7 +151,7 @@ function VolumeChart({ data, tokens: t, dimensao = 'operacoes' }: { data: Evoluc
       {/* Legend */}
       <div className="mb-3 flex flex-wrap items-center gap-4 text-[11px]" style={{ color: t.text.muted }}>
         {(isCpf ? [
-          { color: C.iniciadas,  label: 'Pessoas únicas', shape: 'bar'  },
+          { color: C.iniciadas,  label: 'CPFs únicos', shape: 'bar'  },
           { color: C.concluidas, label: 'Concluídas',     shape: 'line' },
           { color: C.conversao,  label: 'Conversão %',    shape: 'dash' },
         ] : [
@@ -213,7 +213,7 @@ function ConversaoChart({ data, tokens: t, dimensao = 'operacoes' }: { data: Evo
       style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
     >
       <h3 className="text-sm font-semibold mb-0.5" style={{ color: t.text.primary }}>
-        Taxa de conversão {isCpf ? 'por Pessoa' : ''}
+        Taxa de conversão {isCpf ? 'por CPF' : ''}
       </h3>
       <p className="text-[11px] mb-4" style={{ color: t.text.muted }}>
         Média do período: <strong style={{ color: C.conversao }}>{avg.toFixed(2)}%</strong>

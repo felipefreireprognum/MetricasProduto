@@ -324,9 +324,9 @@ export default function DashboardScreen() {
               {dimensao === 'operacoes' ? (
                 <>
                   <KpiCard
-                    label="Operações Iniciadas"
+                    label="Propostas Iniciadas"
                     value={kpis ? fmt(kpis.operacoesIniciadas) : '—'}
-                    people={kpis?.cpfsUnicos != null ? `${fmt(kpis.cpfsUnicos)} pess.` : undefined}
+                    people={kpis?.cpfsUnicos != null ? `${fmt(kpis.cpfsUnicos)} CPFs` : undefined}
                     icon={<ArrowUpRight size={14} />}
                     accent={ACCENT.iniciadas}
                     tokens={t}
@@ -334,9 +334,9 @@ export default function DashboardScreen() {
                     delta={evol.length >= 2 ? { ...moDelta(evol.map((d) => d.iniciadas)), higherGood: true } : undefined}
                   />
                   <KpiCard
-                    label="Operações Concluídas"
+                    label="Propostas Concluídas"
                     value={kpis ? fmt(kpis.operacoesConcluidas) : '—'}
-                    people={kpis?.cpfsConcluidos != null ? `${fmt(kpis.cpfsConcluidos)} pess.` : undefined}
+                    people={kpis?.cpfsConcluidos != null ? `${fmt(kpis.cpfsConcluidos)} CPFs` : undefined}
                     icon={<CheckCircle2 size={14} />}
                     accent={ACCENT.concluidas}
                     tokens={t}
@@ -354,7 +354,7 @@ export default function DashboardScreen() {
                     delta={evol.length >= 2 ? { ...moDelta(evol.map((d) => d.taxaConversao)), higherGood: true } : undefined}
                   />
                   <KpiCard
-                    label="Operações em Fila"
+                    label="Propostas em Andamento"
                     value={kpis ? fmt(kpis.operacoesEmFila) : '—'}
                     icon={<Clock size={14} />}
                     accent={ACCENT.fila}
@@ -374,7 +374,7 @@ export default function DashboardScreen() {
               ) : (
                 <>
                   <KpiCard
-                    label="Pessoas Únicas"
+                    label="CPFs Únicos"
                     value={kpis?.cpfsUnicos != null ? fmt(kpis.cpfsUnicos) : '—'}
                     icon={<Users size={14} />}
                     accent={ACCENT.iniciadas}
@@ -383,7 +383,7 @@ export default function DashboardScreen() {
                     delta={evol.length >= 2 ? { ...moDelta(evol.map((d) => d.iniciadasCpf ?? 0)), higherGood: true } : undefined}
                   />
                   <KpiCard
-                    label="Pessoas Concluídas"
+                    label="CPFs Concluídos"
                     value={kpis?.cpfsConcluidos != null ? fmt(kpis.cpfsConcluidos) : '—'}
                     icon={<CheckCircle2 size={14} />}
                     accent={ACCENT.concluidas}
@@ -392,7 +392,7 @@ export default function DashboardScreen() {
                     delta={evol.length >= 2 ? { ...moDelta(evol.map((d) => d.concluidasCpf ?? 0)), higherGood: true } : undefined}
                   />
                   <KpiCard
-                    label="Conversão por Pessoa"
+                    label="Conversão por CPF"
                     value={kpis?.taxaConversaoCpf != null ? `${kpis.taxaConversaoCpf.toFixed(1)}%` : '—'}
                     icon={<TrendingUp size={14} />}
                     accent={ACCENT.conversao}

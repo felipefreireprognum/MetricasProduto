@@ -19,6 +19,9 @@ const MACRO_COLOR: Record<string, string> = {
   'Negociação':            '#F59E0B',
   'Análise de Documentos': '#EC4899',
   'Análise Técnica':       '#F97316',
+  'Emissão de Contrato':   '#10B981',
+  'Registro de Contratos': '#06B6D4',
+  // backward compat
   'Formalização':          '#10B981',
   'Liberação':             '#06B6D4',
 };
@@ -100,7 +103,7 @@ function TentativasSection({ data, tokens: t }: { data: JornadaData; tokens: Ban
   return (
     <SectionCard
       title="Quem são os reincidentes?"
-      sub="Distribuição de pessoas por número de tentativas"
+      sub="Distribuição de CPFs por número de tentativas"
       tokens={t}
     >
       <div className="flex gap-4 items-center">
@@ -126,7 +129,7 @@ function TentativasSection({ data, tokens: t }: { data: JornadaData; tokens: Ban
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [(Number(value)).toLocaleString('pt-BR'), 'pessoas']}
+                formatter={(value) => [(Number(value)).toLocaleString('pt-BR'), 'CPFs']}
                 contentStyle={{
                   fontSize: 11,
                   borderRadius: 8,
@@ -142,7 +145,7 @@ function TentativasSection({ data, tokens: t }: { data: JornadaData; tokens: Ban
             <p className="text-base font-black tabular-nums leading-none" style={{ color: t.text.primary }}>
               {fmt(totalPess)}
             </p>
-            <p className="text-[9px] font-semibold mt-0.5" style={{ color: t.text.muted }}>pessoas</p>
+            <p className="text-[9px] font-semibold mt-0.5" style={{ color: t.text.muted }}>CPFs</p>
           </div>
         </div>
 
@@ -174,7 +177,7 @@ function TentativasSection({ data, tokens: t }: { data: JornadaData; tokens: Ban
                   </div>
                   <div className="flex items-center justify-between mt-0.5">
                     <span className="text-[10px] tabular-nums font-semibold" style={{ color: t.text.secondary }}>
-                      {fmt(g.pessoas)} pess. · {pct}%
+                      {fmt(g.pessoas)} CPFs · {pct}%
                     </span>
                     <span className="text-[10px] tabular-nums" style={{ color: t.text.muted }}>
                       {fmt(ops)} ops · {opsPct}%
@@ -207,7 +210,7 @@ function TentativasSection({ data, tokens: t }: { data: JornadaData; tokens: Ban
             >
               <RefreshCw size={13} style={{ color: '#D97706', marginTop: 1, flexShrink: 0 }} />
               <p className="text-[11px] leading-snug" style={{ color: '#92400E' }}>
-                <strong>{fmt(data.totalRetentativas ?? 0)} operações extras</strong> ({data.pctRetentativas?.toFixed(1)}% do total) são retentativas —
+                <strong>{fmt(data.totalRetentativas ?? 0)} propostas extras</strong> ({data.pctRetentativas?.toFixed(1)}% do total) são retentativas —
                 carga que não existiria se a 1ª tentativa convertesse.
               </p>
             </div>
@@ -309,7 +312,7 @@ function ProgressoSection({ data, tokens: t }: { data: JornadaData; tokens: Bank
   return (
     <SectionCard
       title="Progresso na 2ª tentativa"
-      sub={`Comparação entre 1ª e 2ª operação · ${fmt(total)} reincidentes analisados`}
+      sub={`Comparação entre 1ª e 2ª proposta · ${fmt(total)} reincidentes analisados`}
       tokens={t}
     >
       <div className="flex flex-col gap-3 mb-4">
@@ -348,7 +351,7 @@ function ProgressoSection({ data, tokens: t }: { data: JornadaData; tokens: Bank
         >
           <Target size={13} style={{ color: '#16A34A', marginTop: 1, flexShrink: 0 }} />
           <p className="text-[11px] leading-snug" style={{ color: '#14532D' }}>
-            <strong>{fmt(p.converteuNa2a)} pessoas</strong> que falharam na 1ª tentativa{' '}
+            <strong>{fmt(p.converteuNa2a)} CPFs</strong> que falharam na 1ª tentativa{' '}
             <strong>converteram na 2ª</strong> —{' '}
             {total > 0 ? `${(p.converteuNa2a / total * 100).toFixed(1)}%` : '—'} dos reincidentes recuperados.
           </p>
@@ -376,7 +379,7 @@ function QuebraSection({ data, tokens: t }: { data: JornadaData; tokens: BankTok
   return (
     <SectionCard
       title="Onde a 1ª tentativa trava"
-      sub={`${fmt(data.totalQuebrou)} pessoas com 1ª operação cancelada`}
+      sub={`${fmt(data.totalQuebrou)} CPFs com 1ª proposta cancelada`}
       tokens={t}
     >
       {data.primeiraQuebra.length === 0 ? (
@@ -499,7 +502,7 @@ export default function JornadaScreen() {
               <KpiCard
                 icon={<Users size={16} style={{ color: '#3B82F6' }} />}
                 color="#3B82F6"
-                label="Pessoas no funil"
+                label="CPFs no funil"
                 value={fmt(data.totalCpfs)}
                 sub={`${data.totalCpfs.toLocaleString('pt-BR')} CPFs únicos`}
                 tokens={t}

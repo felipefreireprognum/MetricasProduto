@@ -73,7 +73,7 @@ export function CpfInsightsPanel({ kpis, tokens: t }: Props) {
             Dados de CPF ainda não disponíveis
           </p>
           <p className="text-xs mt-0.5" style={{ color: t.text.muted }}>
-            Acesse <strong>Fontes</strong> e clique em <strong>Atualizar</strong> para carregar métricas por pessoa.
+            Acesse <strong>Fontes</strong> e clique em <strong>Atualizar</strong> para carregar métricas por CPF.
           </p>
         </div>
       </div>
@@ -88,15 +88,15 @@ export function CpfInsightsPanel({ kpis, tokens: t }: Props) {
 
   const rows: Row[] = [
     {
-      pergunta: 'Quantas pessoas entraram no funil?',
-      operacoes: `${fmt(operacoesIniciadas)} operações`,
-      cpf: `${fmt(cpfsUnicos)} pessoas`,
+      pergunta: 'Quantos CPFs entraram no funil?',
+      operacoes: `${fmt(operacoesIniciadas)} propostas`,
+      cpf: `${fmt(cpfsUnicos)} CPFs`,
       cpfHighlight: true,
     },
     {
       pergunta: 'Taxa de conversão real',
-      operacoes: `${taxaConversao.toFixed(1)}% das operações`,
-      cpf: `${taxaConversaoCpf.toFixed(1)}% das pessoas`,
+      operacoes: `${taxaConversao.toFixed(1)}% das propostas`,
+      cpf: `${taxaConversaoCpf.toFixed(1)}% dos CPFs`,
       cpfHighlight: taxaConversaoCpf > taxaConversao,
     },
     {
@@ -125,10 +125,10 @@ export function CpfInsightsPanel({ kpis, tokens: t }: Props) {
       >
         <div>
           <h3 className="text-sm font-semibold" style={{ color: t.text.primary }}>
-            Perspectiva por Pessoa (CPF)
+            Perspectiva por CPF
           </h3>
           <p className="text-[11px] mt-0.5" style={{ color: t.text.muted }}>
-            Como os números mudam quando olhamos por pessoa e não por operação
+            Como os números mudam quando olhamos por CPF e não por proposta
           </p>
         </div>
         <span
@@ -144,16 +144,16 @@ export function CpfInsightsPanel({ kpis, tokens: t }: Props) {
         <MiniKpi
           icon={<Users size={12} />}
           value={fmt(cpfsUnicos)}
-          label="Pessoas únicas"
-          sub={`vs ${fmt(operacoesIniciadas)} operações`}
+          label="CPFs únicos"
+          sub={`vs ${fmt(operacoesIniciadas)} propostas`}
           color="#3B82F6"
           tokens={t}
         />
         <MiniKpi
           icon={<TrendingUp size={12} />}
           value={`${taxaConversaoCpf.toFixed(1)}%`}
-          label="Conversão por pessoa"
-          sub={`${taxaConversao.toFixed(1)}% por operação`}
+          label="Conversão por CPF"
+          sub={`${taxaConversao.toFixed(1)}% por proposta`}
           color="#10B981"
           tokens={t}
         />
@@ -188,8 +188,8 @@ export function CpfInsightsPanel({ kpis, tokens: t }: Props) {
           }}
         >
           <span>Pergunta</span>
-          <span>Por operação (hoje)</span>
-          <span>Por pessoa (CPF)</span>
+          <span>Por proposta (hoje)</span>
+          <span>Por CPF</span>
         </div>
 
         {rows.map((row, i) => (

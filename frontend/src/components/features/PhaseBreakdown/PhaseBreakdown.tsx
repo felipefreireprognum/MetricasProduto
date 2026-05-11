@@ -109,7 +109,7 @@ export function PhaseBreakdown({ fases, temposFase, tokens: t }: Props) {
           icon={Layers}
           label="Total de fases"
           value={String(rows.length)}
-          sub={`${rows.filter(r => r.total > 0).length} com operações`}
+          sub={`${rows.filter(r => r.total > 0).length} com propostas`}
           accent="#3B82F6"
           tokens={t}
         />
@@ -188,7 +188,7 @@ export function PhaseBreakdown({ fases, temposFase, tokens: t }: Props) {
           }}
         >
           <span>Fase</span>
-          <span>Volume de operações</span>
+          <span>Volume de propostas</span>
           <span className="text-right">Qtd.</span>
           <span className="text-right">Tempo médio</span>
         </div>

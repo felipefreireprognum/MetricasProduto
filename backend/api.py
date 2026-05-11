@@ -239,6 +239,18 @@ def _build_dashboard_data(df: pd.DataFrame) -> dict | None:
     if 'MACROFASE' not in df.columns:
         df['MACROFASE'] = df['FASE_NOME']
 
+    # Migrate old macrofase names from legacy Parquet files to current nomenclature
+    if 'NU_FASE_OPERACAO' in df.columns:
+        _emissao_codes  = {500, 501, 502, 503, 504, 505}
+        _registro_codes = {600, 601, 700, 701}
+        _mask_formal = df['MACROFASE'] == 'Formalização'
+        _mask_libera = df['MACROFASE'] == 'Liberação'
+        if _mask_formal.any():
+            df.loc[_mask_formal & df['NU_FASE_OPERACAO'].isin(_emissao_codes),  'MACROFASE'] = 'Emissão de Contrato'
+            df.loc[_mask_formal & df['NU_FASE_OPERACAO'].isin(_registro_codes), 'MACROFASE'] = 'Registro de Contratos'
+        if _mask_libera.any():
+            df.loc[_mask_libera, 'MACROFASE'] = 'Registro de Contratos'
+
     _CANCELADAS_CODES = set(range(900, 939)) | {1000}
 
     # 1. Unique operations per phase (nunique avoids counting retries/re-entries as extra ops)
@@ -257,8 +269,8 @@ def _build_dashboard_data(df: pd.DataFrame) -> dict | None:
         'Negociação':          200,
         'Análise de Documentos': 300,
         'Análise Técnica':     400,
-        'Formalização':        500,
-        'Liberação':           700,
+        'Emissão de Contrato': 500,
+        'Registro de Contratos': 600,
         'Concluído':           800,
     }
     df_pipeline     = df[~df['NU_FASE_OPERACAO'].isin(_CANCELADAS_CODES)]
@@ -271,6 +283,14 @@ def _build_dashboard_data(df: pd.DataFrame) -> dict | None:
         {'macrofase': nome, 'total': int((op_max_pipeline >= min_code).sum())}
         for nome, min_code in _MACROFASE_MIN_CODE.items()
     ]
+    # Crédito Reprovado (fase 101): ops whose highest non-cancelled phase is exactly 101.
+    # They entered Crédito but were rejected — shown separately from the approved count.
+    credito_reprovados = int((op_max_pipeline == 101).sum())
+    for _m in macrofase_totais:
+        if _m['macrofase'] == 'Crédito':
+            _m['total'] = max(0, _m['total'] - credito_reprovados)
+            _m['reprovados'] = credito_reprovados
+            break
     # Cancelada appended after op_last_phase is computed in step 3
     # operacoes_por_fase built later (after abandono calculation)
 

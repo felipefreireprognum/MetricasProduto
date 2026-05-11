@@ -119,6 +119,7 @@ Python >= 3.10
 Instalar dependências:
 
 ```bash
+cd backend
 pip install -r requirements.txt
 ```
 
@@ -163,10 +164,10 @@ Lucide React    # ícones
 
 ## 4. Configuração de Ambiente
 
-Copie `.env.example` para `.env` na raiz do projeto e preencha:
+Copie `.env.example` para `.env` dentro de `backend/` e preencha:
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
 Arquivo `.env`:
@@ -296,13 +297,13 @@ O "banco de métricas" é um arquivo **Parquet** local gerado automaticamente pe
 ### Localização
 
 ```
-CONSULTAS/
+backend/CONSULTAS/
 ├── metricas_c6_scci.parquet       # C6 Bank, ambiente scci.gdb
 ├── metricas_inter.parquet         # Banco Inter
 └── metricas_<banco>_<slug>.parquet
 ```
 
-O nome do arquivo é gerado pela função `_cache_path(banco, ambiente)`:
+O nome do arquivo é gerado pela função `_cache_path(banco, ambiente)` em `backend/api.py`:
 
 ```python
 def _cache_path(banco: str, ambiente: str | None = None) -> str:
@@ -429,7 +430,7 @@ NO_FASE_OPERACAO, NO_FASE, MACROFASE
 ### Terminal 1 — Backend (FastAPI)
 
 ```bash
-# Na raiz do projeto
+cd backend
 uvicorn api:app --reload --port 8000
 ```
 

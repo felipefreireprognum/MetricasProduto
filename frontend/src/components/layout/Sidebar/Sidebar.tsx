@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, GitCompareArrows, ListChecks, TrendingDown,
   Table2, LineChart, FileBarChart2, Plus, X,
-  Info, LogOut, Database, Sheet, Trophy, Route,
+  Info, LogOut, Database, Sheet, Trophy, Route, Activity,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import prognumLogo from '@/assets/prognumlogo.webp';
@@ -22,12 +22,13 @@ const NAV = [
   { href: ROUTES.FASES,       label: 'Por Fase',     icon: ListChecks,       soon: false },
   { href: ROUTES.TENDENCIAS,  label: 'Tendências',   icon: LineChart,        soon: false },
   { href: ROUTES.RANKINGS,    label: 'Rankings',     icon: Trophy,           soon: false },
+  { href: ROUTES.DIAGNOSTICO, label: 'Diagnóstico',  icon: Activity,         soon: false },
   { href: ROUTES.JORNADA,     label: 'Jornada',      icon: Route,            soon: false },
   { href: ROUTES.EXPLORER,    label: 'BD Métricas',  icon: Sheet,            soon: false },
   { href: ROUTES.DADOS,       label: 'Fontes',       icon: Database,         soon: false },
   { href: ROUTES.TABELAS,     label: 'Consulta BD',  icon: Table2,           soon: false },
   { href: ROUTES.COMPARATIVO, label: 'Comparativo',  icon: GitCompareArrows, soon: true  },
-  { href: ROUTES.ABANDONO,    label: 'Abandono',     icon: TrendingDown,     soon: true  },
+  { href: ROUTES.ABANDONO,    label: 'Cancelamentos', icon: TrendingDown,    soon: true  },
   { href: ROUTES.RELATORIOS,  label: 'Relatórios',   icon: FileBarChart2,    soon: true  },
 ];
 

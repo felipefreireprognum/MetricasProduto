@@ -1,13 +1,10 @@
-# Métricas AG31 — SCCI / FCVS
+# Métricas SCCI — Originação / FCVS
 
 ## Contexto do Projeto
 
-Sistema de visualização e análise de métricas do **AG31** — relatório padrão do **SCCI (Sistema de Controle de Crédito Imobiliário)**, relacionado ao **FCVS (Fundo de Compensação de Variações Salariais)**. Os dados vêm de múltiplos bancos que operam crédito imobiliário (C6 Bank, Banco Inter) e de um banco de dados Firebird interno.
+Sistema de visualização e análise de métricas de **originação de crédito imobiliário** do **SCCI (Sistema de Controle de Crédito Imobiliário)**, relacionado ao **FCVS (Fundo de Compensação de Variações Salariais)**. Os dados vêm de múltiplos bancos (C6 Bank, Banco Inter) via banco de dados Firebird interno.
 
-O AG31 é um relatório mensal que os bancos enviam contendo métricas de:
-- **Contratos** (Base Principal e Base de Finalizados): ativos, inativos, com/sem cobertura FCVS, com/sem série, prestações emitidas, baixas processadas, etc.
-- **Imóveis**: cadastrados, vagos (novos e retomados), ocupados (ativos e inativos)
-- **Originação**: operações iniciadas, concluídas, após avaliação, após assinatura de contrato, tempo por fase
+O foco é o funil de originação: propostas iniciadas por fase, conversão, abandono, tempo médio por etapa e jornada por CPF.
 
 ---
 
@@ -15,6 +12,7 @@ O AG31 é um relatório mensal que os bancos enviam contendo métricas de:
 
 **Terminal 1 — Backend**
 ```bash
+cd backend
 uvicorn api:app --reload --port 8000
 ```
 
@@ -34,7 +32,7 @@ Os dados **não são consultados em tempo real**. O padrão é ETL → arquivo l
 ```
 [Firebird / SQL Server via SSH]
           ↓  (Atualizar ou Expandir na tela Fontes)
-[CONSULTAS/metricas_<banco>_<ambiente>.parquet]   ← warehouse local
+[backend/CONSULTAS/metricas_<banco>_<ambiente>.parquet]   ← warehouse local
           ↓  (cada requisição ao /dashboard ou /parquet/dados)
 [FastAPI lê Parquet + pandas processa em memória]   ← sub-segundo
           ↓
@@ -47,8 +45,8 @@ Os dados **não são consultados em tempo real**. O padrão é ETL → arquivo l
 - Tipos preservados (datas são datas, não strings)
 - Base para exportar CSV futuramente
 
-**Localização dos arquivos:** pasta `CONSULTAS/`, ignorada pelo git.
-Nome gerado por `_cache_path(banco, ambiente)` → ex: `CONSULTAS/metricas_c6_scci.parquet`
+**Localização dos arquivos:** pasta `backend/CONSULTAS/`, ignorada pelo git.
+Nome gerado por `_cache_path(banco, ambiente)` → ex: `backend/CONSULTAS/metricas_c6_scci.parquet`
 
 ---
 
@@ -73,7 +71,7 @@ Busca os **N registros anteriores** ao mais antigo já salvo no Parquet — acum
 
 ---
 
-## Endpoints da API (`api.py`)
+## Endpoints da API (`backend/api.py`)
 
 ### Dashboard
 - `GET /dashboard?banco=&ambiente=` — lê Parquet, processa, retorna `DashboardData`
@@ -97,6 +95,28 @@ Busca os **N registros anteriores** ao mais antigo já salvo no Parquet — acum
 
 ### Serialização numpy
 `api.py` tem `_NpEncoder` e `_to_native()` para converter tipos pandas/numpy (`int64`, `float64`, `Timestamp`) para Python nativo antes do FastAPI serializar. `_build_dashboard_data()` sempre retorna `_to_native({...})`.
+
+---
+
+## Estrutura de Pastas
+
+```
+Metricas/
+├── backend/
+│   ├── api.py                   ← FastAPI principal
+│   ├── core/
+│   │   ├── database.py          ← Firebird via SSH
+│   │   └── database_sqlserver.py ← SQL Server via SSH
+│   ├── requirements.txt
+│   ├── .env                     ← credenciais (não versionado)
+│   ├── .env.example
+│   └── CONSULTAS/               ← warehouse Parquet (não versionado)
+├── frontend/                    ← Next.js
+│   └── src/...
+├── CLAUDE.md
+├── CODEX.md
+└── README.md
+```
 
 ---
 
@@ -136,12 +156,12 @@ Colunas internas usam nomes sem `_` prefixado para evitar renomeação do `itert
 
 ## Conexões com Banco de Dados
 
-### `core/database.py` — Firebird
+### `backend/core/database.py` — Firebird
 Conecta via **SSH tunnel** (`sshtunnel`) → **Firebird** (`fdb`), charset `WIN1252`.
 Tunnel reutilizado entre requisições; recriado se credenciais mudarem.
 Vars: `SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PASSWORD`, `DB_PORT`, `DB_PATH`, `DB_USER`, `DB_PASSWORD`, `DB_CHARSET`.
 
-### `core/database_sqlserver.py` — SQL Server
+### `backend/core/database_sqlserver.py` — SQL Server
 Mesmo padrão, para o Banco Inter (`enabled: false` no frontend).
 Vars: `INTER_DB_HOST`, `INTER_DB_PORT`, `INTER_DB_USER`, `INTER_DB_PASSWORD`, `INTER_DB_NAME`.
 
@@ -152,15 +172,18 @@ Vars: `INTER_DB_HOST`, `INTER_DB_PORT`, `INTER_DB_USER`, `INTER_DB_PASSWORD`, `I
 ### Rotas (`src/app/(main)/`)
 | Rota | Tela | Descrição |
 |---|---|---|
-| `/dashboard` | DashboardScreen | Visão geral com gráficos |
-| `/fases` | FasesScreen | Análise por fase |
-| `/explorer` | ExplorerScreen | BD de Métricas — tabela do Parquet |
-| `/dados` | DadosScreen | Fontes — gestão de conexões e Parquet |
+| `/dashboard` | DashboardScreen | Visão geral — KPIs, evolução mensal, funil |
+| `/fases` | FaseAnalysisScreen | Funil chevron com drill-down por fase |
+| `/tendencias` | TendenciasScreen | Série temporal de iniciadas/concluídas/conversão |
+| `/rankings` | RankingsScreen | Top usuários, fases por volume/tempo/abandono |
+| `/diagnostico` | DiagnosticoScreen | Semáforo automático: severidade por indicador |
+| `/jornada` | JornadaScreen | Jornada por CPF — pizza + MacroPhaseBar |
+| `/explorer` | ExplorerScreen | BD Métricas — tabela paginada do Parquet |
+| `/dados` | DadosScreen | Fontes — Atualizar / Expandir warehouse |
 | `/tabelas` | TabelasScreen | Consulta BD — acesso vivo ao Firebird |
-| `/ag31` | AG31Screen | Relatório AG31 |
 
 ### Navegação (sidebar) — ordem
-Visão Geral → Por Fase → BD Métricas → Fontes → Consulta BD → (em breve: Comparativo, Abandono, Tendências, Relatórios)
+Visão Geral → Por Fase → Tendências → Rankings → Diagnóstico → Jornada → BD Métricas → Fontes → Consulta BD → (em breve: Comparativo, Cancelamentos, Relatórios)
 
 ### Contextos principais
 - `AuthContext` — login, credenciais SSH por banco, tokens de tema

@@ -8,14 +8,13 @@ import type { BankTokens } from '@/theme/tokens';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PIPELINE = [
-  { id: 'Simulação',             color: '#94A3B8', short: 'Simulação'     },
-  { id: 'Cadastro',              color: '#3B82F6', short: 'Cadastro'      },
-  { id: 'Crédito',               color: '#8B5CF6', short: 'Crédito'       },
-  { id: 'Negociação',            color: '#F59E0B', short: 'Negociação'    },
-  { id: 'Análise de Documentos', color: '#EC4899', short: 'Anál. Docs'    },
-  { id: 'Análise Técnica',       color: '#F97316', short: 'Anál. Técnica' },
-  { id: 'Formalização',          color: '#10B981', short: 'Formalização'  },
-  { id: 'Liberação',             color: '#06B6D4', short: 'Liberação'     },
+  { id: 'Simulação',             color: '#94A3B8', short: 'Simulação'      },
+  { id: 'Cadastro',              color: '#3B82F6', short: 'Cadastro'       },
+  { id: 'Crédito',               color: '#8B5CF6', short: 'Crédito'        },
+  { id: 'Negociação',            color: '#F59E0B', short: 'Negociação'     },
+  { id: 'Análise de Documentos', color: '#EC4899', short: 'Anál. Docs'     },
+  { id: 'Análise Técnica',       color: '#F97316', short: 'Anál. Técnica'  },
+  { id: 'Emissão de Contrato',   color: '#10B981', short: 'Emissão Contr.' },
 ] as const;
 
 function formatCount(n: number): string {
@@ -132,14 +131,14 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
               className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold align-middle"
               style={{ backgroundColor: '#3B82F615', color: '#3B82F6', border: '1px solid #3B82F625' }}
             >
-              Por Pessoa
+              Por CPF
             </span>
           )}
         </h3>
         <p className="mt-0.5 text-[11px]" style={{ color: t.text.muted }}>
           {dimensao === 'cpf'
-            ? 'Pessoas únicas por etapa · clique para detalhar'
-            : 'Operações únicas por etapa · clique para detalhar'}
+            ? 'CPFs únicos por etapa · clique para detalhar'
+            : 'Propostas únicas por etapa · clique para detalhar'}
         </p>
       </div>
 
@@ -272,7 +271,7 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
                 {selected}
               </p>
               <span className="text-[10px]" style={{ color: t.text.muted }}>
-                — {selectedTotal.toLocaleString('pt-BR')} {dimensao === 'cpf' ? 'pessoas chegaram aqui' : 'operações chegaram aqui'}
+                — {selectedTotal.toLocaleString('pt-BR')} {dimensao === 'cpf' ? 'CPFs chegaram aqui' : 'propostas aqui'}
               </span>
             </div>
 
@@ -470,6 +469,36 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
           )}
         </div>
       )}
+
+      {/* ── Pós-emissão ─────────────────────────────────────────────────────── */}
+      {(() => {
+        const regCount = totalMap.get('Registro de Contratos') ?? totalMap.get('Liberação') ?? 0;
+        if (regCount === 0) return null;
+        return (
+          <div className="px-5 pb-4" style={{ borderTop: `1px solid ${t.border.subtle}`, paddingTop: '12px' }}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+              <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: t.text.muted }}>
+                Pós-emissão
+              </span>
+              <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+            </div>
+            <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2"
+                 style={{ backgroundColor: '#06B6D40D', border: '1px solid #06B6D430', width: 'fit-content' }}>
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#06B6D4' }} />
+              <div>
+                <p className="text-[10px] font-medium" style={{ color: t.text.secondary }}>Registro de Contratos</p>
+                <p className="text-sm font-black tabular-nums" style={{ color: '#06B6D4' }}>
+                  {formatCount(regCount)}
+                </p>
+                <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>
+                  {baseline > 0 ? `${((regCount / baseline) * 100).toFixed(1)}% do início` : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

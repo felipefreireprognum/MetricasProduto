@@ -73,7 +73,7 @@ export function EvolutionChart({ data, tokens: t, dimensao = 'operacoes' }: Prop
   const conversao_key = isCpf ? 'taxaConversaoCpf' : 'taxaConversao';
 
   const METRICAS: { id: MetricaId; label: string }[] = [
-    { id: 'iniciadas', label: isCpf ? 'Pessoas únicas' : 'Operações iniciadas' },
+    { id: 'iniciadas', label: isCpf ? 'CPFs únicos' : 'Propostas iniciadas' },
     { id: 'conversao', label: 'Conversão (%)' },
     { id: 'tempo',     label: 'Tempo médio (dias)' },
   ];
@@ -161,7 +161,7 @@ export function EvolutionChart({ data, tokens: t, dimensao = 'operacoes' }: Prop
       <div className="mb-3 flex flex-wrap items-center gap-4 text-[11px]" style={{ color: t.text.muted }}>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CLR.iniciadas }} />
-          {isCpf ? 'Pessoas únicas' : 'Operações iniciadas'}
+          {isCpf ? 'CPFs únicos' : 'Propostas iniciadas'}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-[2px] w-3 rounded-full" style={{ backgroundColor: CLR.conversao }} />
@@ -259,7 +259,7 @@ export function EvolutionChart({ data, tokens: t, dimensao = 'operacoes' }: Prop
               {([
                 {
                   clr: CLR.iniciadas,
-                  label: isCpf ? 'Pessoas únicas' : 'Operações iniciadas',
+                  label: isCpf ? 'CPFs únicos' : 'Propostas iniciadas',
                   fmt: (d: EvolucaoMensal) => (isCpf ? (d.iniciadasCpf ?? 0) : d.iniciadas).toLocaleString('pt-BR'),
                 },
                 {

@@ -240,7 +240,7 @@ export default function DadosScreen() {
                 {/* Limit picker */}
                 <div>
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: t.text.muted }}>
-                    Registros por operação
+                    Registros por proposta
                   </p>
                   <div
                     className="grid grid-cols-4 gap-1 rounded-xl p-1"

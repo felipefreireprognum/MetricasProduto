@@ -9,7 +9,7 @@ import prognumLogo from '@/assets/prognumlogo.webp';
 const FEATURES = [
   { icon: BarChart3,  text: 'Dashboard em tempo real com dados dos bancos' },
   { icon: Database,   text: 'Conexão multi-banco: C6 Bank, Banco Inter' },
-  { icon: TrendingUp, text: 'Métricas AG31 — SCCI / FCVS consolidadas' },
+  { icon: TrendingUp, text: 'Métricas SCCI / FCVS — originação consolidada' },
 ] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ export default function LoginScreen() {
               className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
               style={{ backgroundColor: 'rgba(255,217,61,0.15)', color: '#FFD93D', border: '1px solid rgba(255,217,61,0.25)' }}
             >
-              AG31
+              SCCI
             </span>
           </div>
 
@@ -77,7 +77,7 @@ export default function LoginScreen() {
               <span style={{ color: '#7CB9FF' }}>FCVS</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              Visualize indicadores em tempo real do relatório AG31 — contratos, imóveis e originação por banco.
+              Visualize indicadores de originação em tempo real — funil de propostas, conversão e tempo médio por banco.
             </p>
 
             {/* Feature list */}
@@ -100,7 +100,7 @@ export default function LoginScreen() {
           <div className="flex items-center gap-2">
             <div className="h-px flex-1" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
             <span className="text-[10px] tracking-widest" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              AG31 · SCCI · FCVS
+              SCCI · FCVS
             </span>
             <div className="h-px flex-1" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }} />
           </div>

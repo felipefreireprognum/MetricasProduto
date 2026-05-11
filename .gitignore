@@ -1,5 +1,6 @@
 # Credenciais
 .env
+backend/.env
 
 # Python
 __pycache__/
@@ -16,6 +17,7 @@ env/
 
 # Warehouse local (Parquet por banco/ambiente)
 CONSULTAS/
+backend/CONSULTAS/
 
 # OS
 .DS_Store

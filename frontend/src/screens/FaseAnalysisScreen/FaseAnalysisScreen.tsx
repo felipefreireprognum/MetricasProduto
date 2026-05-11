@@ -67,7 +67,7 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
           icon={<Users size={16} style={{ color: '#3B82F6' }} />}
           color="#3B82F6"
           value={(kpis.cpfsUnicos ?? 0).toLocaleString('pt-BR')}
-          label="Pessoas Únicas"
+          label="CPFs Únicos"
           sub="CPFs no funil"
           tokens={t}
         />
@@ -75,7 +75,7 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
           icon={<CheckCircle2 size={16} style={{ color: '#16A34A' }} />}
           color="#16A34A"
           value={(kpis.cpfsConcluidos ?? 0).toLocaleString('pt-BR')}
-          label="Pessoas Concluídas"
+          label="CPFs Concluídos"
           sub={`${(kpis.taxaConversaoCpf ?? 0).toFixed(1)}% de conversão`}
           tokens={t}
         />
@@ -100,7 +100,7 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
           color="#8B5CF6"
           value={kpis.tempoMedioTotal != null ? `${kpis.tempoMedioTotal.toFixed(1)}d` : '—'}
           label="Tempo Médio"
-          sub="dias por operação"
+          sub="dias por proposta"
           tokens={t}
         />
       </div>
@@ -114,7 +114,7 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
         color="#3B82F6"
         value={kpis.operacoesIniciadas.toLocaleString('pt-BR')}
         label="Iniciadas"
-        sub="operações no funil"
+        sub="propostas no funil"
         tokens={t}
       />
       <KpiCard
@@ -146,7 +146,7 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
         color="#8B5CF6"
         value={kpis.tempoMedioTotal != null ? `${kpis.tempoMedioTotal.toFixed(1)}d` : '—'}
         label="Tempo Médio"
-        sub="dias por operação"
+        sub="dias por proposta"
         tokens={t}
       />
     </div>

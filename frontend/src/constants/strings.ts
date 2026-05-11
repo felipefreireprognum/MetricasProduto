@@ -1,12 +1,12 @@
 export const STRINGS = {
   app: {
-    name: 'Métricas AG31',
-    subtitle: 'SCCI / FCVS',
+    name: 'Métricas SCCI',
+    subtitle: 'FCVS / Originação',
   },
 
   login: {
-    title: 'Métricas AG31',
-    subtitle: 'SCCI / FCVS — Acesso ao Sistema',
+    title: 'Métricas SCCI',
+    subtitle: 'FCVS — Acesso ao Sistema',
     loginLabel: 'Usuário (SSH)',
     loginPlaceholder: 'ex: felipe.freire',
     senhaLabel: 'Senha',
@@ -22,7 +22,6 @@ export const STRINGS = {
   nav: {
     dashboard: 'Dashboard',
     tabelas: 'Tabelas',
-    ag31: 'AG31',
     comparativo: 'Comparativo',
     logout: 'Sair',
   },
@@ -56,19 +55,6 @@ export const STRINGS = {
       topUsuarios: 'Top Usuários',
       distribuicaoFases: 'Distribuição de Fases',
     },
-  },
-
-  ag31: {
-    title: 'AG31',
-    subtitle: 'Relatório mensal SCCI',
-    upload: 'Carregar arquivo',
-    banco: 'Banco',
-    periodo: 'Período',
-    baseContratos: 'Base Contratos',
-    basePrincipal: 'Base Principal',
-    baseFinalizados: 'Base Finalizados',
-    imoveis: 'Imóveis',
-    originacao: 'Originação',
   },
 
   comparativo: {

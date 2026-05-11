@@ -20,10 +20,13 @@ const MACROFASES = [
   { id: 'Negociação',             color: '#F59E0B' },
   { id: 'Análise de Documentos',  color: '#EC4899' },
   { id: 'Análise Técnica',        color: '#F97316' },
-  { id: 'Formalização',           color: '#10B981' },
-  { id: 'Liberação',              color: '#06B6D4' },
+  { id: 'Emissão de Contrato',    color: '#10B981' },
+  { id: 'Registro de Contratos',  color: '#06B6D4' },
   { id: 'Concluído',              color: '#16A34A' },
   { id: 'Cancelada',              color: '#EF4444' },
+  // backward compat com Parquet antigo
+  { id: 'Formalização',           color: '#10B981' },
+  { id: 'Liberação',              color: '#06B6D4' },
 ] as const;
 
 type MacrofaseId = typeof MACROFASES[number]['id'];
@@ -35,6 +38,9 @@ const MACROFASE_ICONS: Record<string, LucideIcon> = {
   'Negociação':            MessageSquare,
   'Análise de Documentos': FileSearch,
   'Análise Técnica':       Wrench,
+  'Emissão de Contrato':   PenLine,
+  'Registro de Contratos': Unlock,
+  // backward compat
   'Formalização':          PenLine,
   'Liberação':             Unlock,
 };
@@ -66,6 +72,7 @@ interface MacrofaseRow {
   abandono:    number;
   emAndamento: number;
   phases:      PhaseDetail[];
+  reprovados?: number;
 }
 
 interface HoverState {
@@ -86,6 +93,8 @@ export interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const POS_EMISSAO_IDS = new Set(['Registro de Contratos', 'Liberação']);
+
 function tempoBadge(dias: number | null) {
   if (dias == null) return { bg: '#F1F5F9', text: '#94A3B8', label: '—' };
   if (dias < 7)     return { bg: '#DCFCE7', text: '#16A34A', label: `${dias.toFixed(1)}d` };
@@ -100,14 +109,54 @@ function formatCount(n: number): string {
   return n.toLocaleString('pt-BR');
 }
 
+function PosEmissaoSection({ rows, baseline, tokens: t }: {
+  rows:     MacrofaseRow[];
+  baseline: number;
+  tokens:   BankTokens;
+}) {
+  if (!rows.length) return null;
+  return (
+    <div className="px-4 pb-4 pt-2">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: t.text.muted }}>
+          Pós-emissão
+        </span>
+        <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {rows.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center gap-2.5 rounded-lg px-3.5 py-2"
+            style={{ backgroundColor: `${m.color}0D`, border: `1px solid ${m.color}30` }}
+          >
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+            <div>
+              <p className="text-[10px] font-medium" style={{ color: t.text.secondary }}>{m.label}</p>
+              <p className="text-sm font-black tabular-nums" style={{ color: m.color }}>{formatCount(m.count)}</p>
+              {baseline > 0 && (
+                <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>
+                  {((m.count / baseline) * 100).toFixed(1)}% do início
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function buildRows(
   fases:           FaseCount[],
   tempos:          TempoFase[],
   transicoes:      FaseTransicao[] = [],
   macrofaseTotais: MacrofaseTotal[] = [],
 ) {
-  const tempoMap     = new Map(tempos.map((tf) => [tf.fase, tf.tempoMedioDias]));
-  const macroTotalMap = new Map(macrofaseTotais.map((m) => [m.macrofase, m.total]));
+  const tempoMap        = new Map(tempos.map((tf) => [tf.fase, tf.tempoMedioDias]));
+  const macroTotalMap   = new Map(macrofaseTotais.map((m) => [m.macrofase, m.total]));
+  const macroReprovMap  = new Map(macrofaseTotais.map((m) => [m.macrofase, m.reprovados ?? 0]));
   const saidasMap    = new Map<number, Saida[]>();
   for (const tr of transicoes) {
     const list = saidasMap.get(tr.de) ?? [];
@@ -131,9 +180,10 @@ function buildRows(
     });
   }
 
-  const funnelRows: MacrofaseRow[] = [];
-  let concluídoRow:  MacrofaseRow | null = null;
-  let canceladaRow:  MacrofaseRow | null = null;
+  const funnelRows:     MacrofaseRow[] = [];
+  const posEmissaoRows: MacrofaseRow[] = [];
+  let concluídoRow:     MacrofaseRow | null = null;
+  let canceladaRow:     MacrofaseRow | null = null;
 
   for (const mf of MACROFASES) {
     const phases = (buckets.get(mf.id) ?? []).sort((a, b) => a.fase - b.fase);
@@ -147,14 +197,16 @@ function buildRows(
       ? withTempo.reduce((s, p) => s + p.tempo!, 0) / withTempo.length
       : null;
 
-    const row: MacrofaseRow = { id: mf.id as MacrofaseId, label: mf.id, color: mf.color, count, avgTempo, abandono, emAndamento, phases };
+    const reprovados = macroReprovMap.get(mf.id) ?? 0;
+    const row: MacrofaseRow = { id: mf.id as MacrofaseId, label: mf.id, color: mf.color, count, avgTempo, abandono, emAndamento, phases, reprovados };
 
-    if      (mf.id === 'Concluído') concluídoRow = row;
-    else if (mf.id === 'Cancelada') canceladaRow = row;
-    else funnelRows.push(row);
+    if      (mf.id === 'Concluído')        concluídoRow = row;
+    else if (mf.id === 'Cancelada')        canceladaRow = row;
+    else if (POS_EMISSAO_IDS.has(mf.id))  posEmissaoRows.push(row);
+    else                                   funnelRows.push(row);
   }
 
-  return { funnelRows, concluídoRow, canceladaRow };
+  return { funnelRows, posEmissaoRows, concluídoRow, canceladaRow };
 }
 
 // ── Hover tooltip (funnel mode) ───────────────────────────────────────────────
@@ -210,11 +262,12 @@ function HoverCard({ hover, tokens: t }: { hover: HoverState; tokens: BankTokens
 
 // ── Funnel mode (dashboard) ───────────────────────────────────────────────────
 
-function FunnelMode({ funnelRows, concluídoRow, canceladaRow, tokens: t }: {
-  funnelRows:   MacrofaseRow[];
-  concluídoRow: MacrofaseRow | null;
-  canceladaRow: MacrofaseRow | null;
-  tokens:       BankTokens;
+function FunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, tokens: t }: {
+  funnelRows:    MacrofaseRow[];
+  posEmissaoRows: MacrofaseRow[];
+  concluídoRow:  MacrofaseRow | null;
+  canceladaRow:  MacrofaseRow | null;
+  tokens:        BankTokens;
 }) {
   if (!funnelRows.length && !concluídoRow && !canceladaRow) return null;
 
@@ -355,6 +408,8 @@ function FunnelMode({ funnelRows, concluídoRow, canceladaRow, tokens: t }: {
           </div>
         </div>
       )}
+
+      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
     </div>
   );
 }
@@ -493,11 +548,12 @@ function DetailMode({ funnelRows, concluídoRow, canceladaRow, tokens: t }: {
 
 const PHASE_COLS = '1fr 200px 72px 52px 72px 96px';
 
-function ExpandFunnelMode({ funnelRows, concluídoRow, canceladaRow, tokens: t }: {
-  funnelRows:   MacrofaseRow[];
-  concluídoRow: MacrofaseRow | null;
-  canceladaRow: MacrofaseRow | null;
-  tokens:       BankTokens;
+function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, tokens: t }: {
+  funnelRows:    MacrofaseRow[];
+  posEmissaoRows: MacrofaseRow[];
+  concluídoRow:  MacrofaseRow | null;
+  canceladaRow:  MacrofaseRow | null;
+  tokens:        BankTokens;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -761,6 +817,8 @@ function ExpandFunnelMode({ funnelRows, concluídoRow, canceladaRow, tokens: t }
           </div>
         </div>
       )}
+
+      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
     </div>
   );
 }
@@ -775,11 +833,12 @@ function chevronClip(first: boolean, last: boolean): string {
   return `polygon(0 0, calc(100% - ${NOTCH}px) 0, 100% 50%, calc(100% - ${NOTCH}px) 100%, 0 100%, ${NOTCH}px 50%)`;
 }
 
-function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'operacoes' }: {
-  funnelRows:   MacrofaseRow[];
-  canceladaRow: MacrofaseRow | null;
-  tokens:       BankTokens;
-  dimensao?:    'operacoes' | 'cpf';
+function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t, dimensao = 'operacoes' }: {
+  funnelRows:    MacrofaseRow[];
+  posEmissaoRows: MacrofaseRow[];
+  canceladaRow:  MacrofaseRow | null;
+  tokens:        BankTokens;
+  dimensao?:     'operacoes' | 'cpf';
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -826,14 +885,14 @@ function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'op
                 className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold align-middle"
                 style={{ backgroundColor: '#3B82F615', color: '#3B82F6', border: '1px solid #3B82F625' }}
               >
-                Por Pessoa
+                Por CPF
               </span>
             )}
           </h3>
           <p className="mt-0.5 text-[11px]" style={{ color: t.text.muted }}>
             {dimensao === 'cpf'
-              ? 'Pessoas únicas por etapa · clique para detalhar'
-              : 'Operações únicas por etapa · clique para detalhar'}
+              ? 'CPFs únicos por etapa · clique para detalhar'
+              : 'Propostas únicas por etapa · clique para detalhar'}
           </p>
         </div>
         <span className="text-[11px] font-medium shrink-0" style={{ color: t.text.muted }}>
@@ -859,7 +918,7 @@ function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'op
               className="flex-1 flex flex-col items-center justify-center gap-1.5 py-6 transition-opacity min-w-0"
               style={{
                 clipPath:        chevronClip(isFirst, isLast),
-                backgroundColor: isOpen ? `${m.color}35` : `${m.color}18`,
+                backgroundColor: isOpen ? `${m.color}40` : isLast ? `${m.color}28` : `${m.color}18`,
                 marginLeft:      i > 0 ? `-${NOTCH}px` : 0,
                 zIndex:          n - i,
                 paddingLeft:     `${pl}px`,
@@ -925,7 +984,12 @@ function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'op
                 </span>
               ) : (
                 <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: t.text.muted }}>
-                  {dimensao === 'cpf' ? 'base CPF' : 'topo funil'}
+                  {dimensao === 'cpf' ? 'base CPF' : 'base funil'}
+                </span>
+              )}
+              {(m.reprovados ?? 0) > 0 && (
+                <span className="text-[8px] tabular-nums font-bold" style={{ color: '#DC2626' }}>
+                  ✗ {formatCount(m.reprovados!)} reprov.
                 </span>
               )}
               {m.abandono > 0 && (
@@ -948,6 +1012,8 @@ function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'op
           );
         })}
       </div>
+
+      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
 
       {/* Expanded phase sections — one per open macrofase, stacked */}
       {openRows.map((m) => (
@@ -1127,7 +1193,7 @@ function ChevronFunnelMode({ funnelRows, canceladaRow, tokens: t, dimensao = 'op
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function MacroMilestones({ fases, tempos, tokens: t, mode = 'funnel', transicoes = [], macrofaseTotais = [], dimensao = 'operacoes' }: Props) {
-  const { funnelRows, concluídoRow, canceladaRow } = buildRows(fases, tempos, transicoes, macrofaseTotais);
+  const { funnelRows, posEmissaoRows, concluídoRow, canceladaRow } = buildRows(fases, tempos, transicoes, macrofaseTotais);
 
   if (mode === 'detail') {
     return (
@@ -1137,15 +1203,15 @@ export function MacroMilestones({ fases, tempos, tokens: t, mode = 'funnel', tra
 
   if (mode === 'expand') {
     return (
-      <ExpandFunnelMode funnelRows={funnelRows} concluídoRow={concluídoRow} canceladaRow={canceladaRow} tokens={t} />
+      <ExpandFunnelMode funnelRows={funnelRows} posEmissaoRows={posEmissaoRows} concluídoRow={concluídoRow} canceladaRow={canceladaRow} tokens={t} />
     );
   }
 
   if (mode === 'chevron') {
-    return <ChevronFunnelMode funnelRows={funnelRows} canceladaRow={canceladaRow} tokens={t} dimensao={dimensao} />;
+    return <ChevronFunnelMode funnelRows={funnelRows} posEmissaoRows={posEmissaoRows} canceladaRow={canceladaRow} tokens={t} dimensao={dimensao} />;
   }
 
   return (
-    <FunnelMode funnelRows={funnelRows} concluídoRow={concluídoRow} canceladaRow={canceladaRow} tokens={t} />
+    <FunnelMode funnelRows={funnelRows} posEmissaoRows={posEmissaoRows} concluídoRow={concluídoRow} canceladaRow={canceladaRow} tokens={t} />
   );
 }
