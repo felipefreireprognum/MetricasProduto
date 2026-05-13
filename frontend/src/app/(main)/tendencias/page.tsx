@@ -1,4 +1,4 @@
-import TendenciasScreen from '@/screens/TendenciasScreen/TendenciasScreen';
+import TendenciasScreen from '@/features/tendencias/TendenciasScreen';
 
 export default function TendenciasPage() {
   return <TendenciasScreen />;

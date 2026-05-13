@@ -1,19 +1,29 @@
 # Metricas SCCI - Contexto para Codex
 
-Este arquivo e o guia rapido para trabalho no repositorio. A documentacao detalhada fica em `docs/`.
+Este arquivo e o guia rapido para trabalho no repositorio. A arquitetura detalhada por camada fica nos READMEs locais:
+
+- Backend: `backend/README.md`
+- Frontend: `frontend/README.md`
+- Mapa de telas: `docs/arquitetura/MAPA_TELAS.md`
+- Documentacao geral: `docs/README.md`
+- Arquitetura historica/geral: `docs/arquitetura/ARQUITETURA.md`
+
+Leia o README da camada antes de reorganizar pastas ou mover codigo.
 
 ## Prioridade de Leitura
 
-Antes de mexer em calculos ou funil:
+Antes de mexer em calculos, funil, fases, gaps ou metodologia:
 
 1. `docs/metodologia/GAPS_TRANSICOES.md`
 2. `docs/metodologia/METODOLOGIA_EVOLUCAO_MACROFASES.md`
 3. `docs/sessoes/SESSAO_2025-05-12.md`
+4. `backend/README.md`
+5. `frontend/README.md`
+6. `docs/arquitetura/MAPA_TELAS.md` quando a mudanca for em tela/rota/frontend
 
-Para contexto geral:
+Para contexto de produto:
 
 - `docs/produto/PRODUTO.md`
-- `docs/arquitetura/ARQUITETURA.md`
 - `README.md`
 
 ## Projeto
@@ -24,11 +34,13 @@ Fluxo principal:
 
 ```text
 Banco remoto via SSH
--> endpoints de cache
+-> FastAPI abre tunnel e atualiza cache
 -> Parquet local em backend/CONSULTAS/
 -> FastAPI processa com pandas
 -> Next.js renderiza dashboards
 ```
+
+O frontend nao consulta banco e nao abre tunnel.
 
 ## Como Rodar
 
@@ -47,40 +59,31 @@ cd frontend
 npm run dev -- --port 3001
 ```
 
-Observacao: `api.py` fica dentro de `backend/`. Rodar `uvicorn api:app` a partir da raiz causa `Could not import module "api"`.
+Observacao: `uvicorn api:app` deve rodar a partir de `backend/`.
 
-## Backend
+## Estrutura Atual
 
-Arquivos principais:
+Backend:
 
-- `backend/api.py`: FastAPI, ETL/cache, dashboard, gaps, jornada.
-- `backend/core/database.py`: Firebird via SSH tunnel.
-- `backend/core/database_sqlserver.py`: SQL Server.
-- `backend/requirements.txt`: dependencias Python.
+- `backend/api.py`: entrada compativel para Uvicorn.
+- `backend/app/main.py`: cria FastAPI, CORS e registra routers.
+- `backend/app/routers/`: endpoints HTTP.
+- `backend/app/services/`: processamento e leitura de dados.
+- `backend/app/domain/`: regras de dominio/metodologia.
+- `backend/app/db/`: conectores e SSH tunnel.
+- `backend/app/core/`: config e helpers tecnicos.
 
-Endpoints mais usados:
+Frontend:
 
-- `/dashboard`
-- `/cache/refresh`
-- `/cache/expand`
-- `/parquet/info`
-- `/parquet/dados`
-- `/gaps`
-- `/jornada`
-- `/tabelas`, `/tabela/{nome}`, `/query`
+- `frontend/src/app/`: rotas Next.
+- `frontend/src/features/`: screens e componentes especificos.
+- `frontend/src/components/`: componentes compartilhados.
+- `frontend/src/hooks/`: hooks centralizados.
+- `frontend/src/services/`: chamadas HTTP.
+- `frontend/src/types/`: contratos TypeScript.
+- `frontend/src/utils/`: helpers e formatadores.
 
-## Frontend
-
-Arquivos principais:
-
-- `frontend/src/screens/DashboardScreen/DashboardScreen.tsx`
-- `frontend/src/screens/FaseAnalysisScreen/FaseAnalysisScreen.tsx`
-- `frontend/src/components/features/MacroPhaseBar/MacroPhaseBar.tsx`
-- `frontend/src/components/features/MacroMilestones/MacroMilestones.tsx`
-- `frontend/src/components/features/GapsModal/GapsModal.tsx`
-- `frontend/src/services/databaseService.ts`
-- `frontend/src/types/dashboard/index.ts`
-- `frontend/src/contexts/FiltersContext.tsx`
+Antes de mexer em uma tela especifica, consulte `docs/arquitetura/MAPA_TELAS.md` para identificar a rota, o `page.tsx` e o `*Screen.tsx` correto.
 
 ## Regras de Metodologia
 
@@ -122,7 +125,7 @@ Transicoes:
 Backend:
 
 ```powershell
-python -m py_compile backend\api.py
+python -m py_compile backend\api.py backend\app\main.py
 ```
 
 Frontend:
@@ -131,6 +134,3 @@ Frontend:
 cd frontend
 .\node_modules\.bin\tsc.cmd --noEmit
 ```
-
-Observacao: no ambiente atual, o TypeScript pode falhar por erros ja existentes em `RankingsScreen.tsx`; diferencie erro novo de erro preexistente.
-

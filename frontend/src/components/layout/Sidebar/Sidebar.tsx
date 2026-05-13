@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, GitCompareArrows, ListChecks, TrendingDown,
   Table2, LineChart, FileBarChart2, Plus, X,
-  Info, LogOut, Database, Sheet, Trophy, Route, Activity,
+  Info, LogOut, Database, Sheet, Trophy, Route, Activity, BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import prognumLogo from '@/assets/prognumlogo.webp';
@@ -21,6 +21,8 @@ const NAV = [
   { href: ROUTES.DASHBOARD,   label: 'Visão Geral',  icon: LayoutDashboard,  soon: false },
   { href: ROUTES.FASES,       label: 'Por Fase',     icon: ListChecks,       soon: false },
   { href: ROUTES.TENDENCIAS,  label: 'Tendências',   icon: LineChart,        soon: false },
+  { href: ROUTES.MACROFASES,  label: 'Macro Mensal', icon: BarChart3,        soon: false },
+  { href: ROUTES.EXPORTACOES, label: 'Exportações',  icon: FileBarChart2,    soon: false },
   { href: ROUTES.RANKINGS,    label: 'Rankings',     icon: Trophy,           soon: false },
   { href: ROUTES.DIAGNOSTICO, label: 'Diagnóstico',  icon: Activity,         soon: false },
   { href: ROUTES.JORNADA,     label: 'Jornada',      icon: Route,            soon: false },

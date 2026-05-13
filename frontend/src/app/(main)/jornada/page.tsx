@@ -1,4 +1,4 @@
-import JornadaScreen from '@/screens/JornadaScreen/JornadaScreen';
+import JornadaScreen from '@/features/jornada/JornadaScreen';
 
 export default function JornadaPage() {
   return <JornadaScreen />;

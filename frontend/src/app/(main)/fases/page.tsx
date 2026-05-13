@@ -1,4 +1,4 @@
-import FaseAnalysisScreen from '@/screens/FaseAnalysisScreen/FaseAnalysisScreen';
+import FaseAnalysisScreen from '@/features/fases/FaseAnalysisScreen';
 
 export default function FasesPage() {
   return <FaseAnalysisScreen />;

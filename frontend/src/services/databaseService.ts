@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { TabelaRow, DashboardData, JornadaData } from '@/types/dashboard';
+import type { TabelaRow, DashboardData, JornadaData, MacroEvolucaoData } from '@/types/dashboard';
 
 export const databaseService = {
   async getDashboard(banco: string, ambiente?: string, inicio?: string, fim?: string): Promise<{ existe: boolean; data: DashboardData | null; savedAt: string | null }> {
@@ -90,6 +90,25 @@ export const databaseService = {
     const { data } = await api.get('/gaps', {
       params: {
         banco,
+        ...(ambiente && { ambiente }),
+        ...(inicio && { inicio }),
+        ...(fim && { fim }),
+      },
+    });
+    return data;
+  },
+
+  async getMacroEvolucao(
+    banco: string,
+    ambiente?: string,
+    inicio?: string,
+    fim?: string,
+    meses = 12,
+  ): Promise<{ existe: boolean; data: MacroEvolucaoData | null; savedAt: string | null }> {
+    const { data } = await api.get<{ existe: boolean; data: MacroEvolucaoData | null; savedAt: string | null }>('/macro-evolucao', {
+      params: {
+        banco,
+        meses,
         ...(ambiente && { ambiente }),
         ...(inicio && { inicio }),
         ...(fim && { fim }),

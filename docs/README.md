@@ -9,6 +9,7 @@ Indice dos documentos vivos do projeto.
 ## Arquitetura
 
 - [Arquitetura](arquitetura/ARQUITETURA.md): backend, frontend, fluxo de dados, cache local e endpoints.
+- [Mapa de telas](arquitetura/MAPA_TELAS.md): rotas, pages e screens JSX/TSX para saber onde mexer em cada tela.
 
 ## Metodologia
 
@@ -24,4 +25,3 @@ Indice dos documentos vivos do projeto.
 - `README.md`: entrada principal do projeto.
 - `CLAUDE.md`: contexto rapido para Claude.
 - `CODEX.md`: contexto rapido para Codex.
-

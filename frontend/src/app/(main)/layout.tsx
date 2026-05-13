@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  BarChart2, Layers, TrendingUp, Trophy, Activity, Route as RouteIcon,
-  Database, Server, Table2, CalendarRange, CalendarDays, Pencil, BookOpen, X,
+  BarChart2, BarChart3, Layers, TrendingUp, Trophy, Activity, Route as RouteIcon,
+  Database, Server, Table2, CalendarRange, CalendarDays, Pencil, BookOpen, X, FileBarChart2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FiltersProvider, useFilters, PERIODO_PRESETS } from '@/contexts/FiltersContext';
@@ -33,6 +33,8 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
     [ROUTES.DASHBOARD]:   { title: 'Visão Geral',      description: 'Dados consolidados de todos os bancos',               icon: <BarChart2  size={20} style={{ color: t.accent.primary }} /> },
     [ROUTES.FASES]:       { title: 'Por Fase',          description: 'Volume, abandono e fluxo por fase do pipeline',        icon: <Layers     size={20} style={{ color: t.accent.primary }} /> },
     [ROUTES.TENDENCIAS]:  { title: 'Tendências',        description: 'Evolução mensal — volume, conversão e tempo',          icon: <TrendingUp size={20} style={{ color: t.accent.primary }} /> },
+    [ROUTES.MACROFASES]:  { title: 'Macro Mensal',      description: 'Comparativo mes a mes por macrofase',                  icon: <BarChart3  size={20} style={{ color: t.accent.primary }} /> },
+    [ROUTES.EXPORTACOES]: { title: 'Exportações',       description: 'Power BI e CSV da base de métricas',                   icon: <FileBarChart2 size={20} style={{ color: t.accent.primary }} /> },
     [ROUTES.RANKINGS]:    { title: 'Rankings',          description: 'Fases e usuários com maior impacto no funil',          icon: <Trophy     size={20} style={{ color: t.accent.primary }} /> },
     [ROUTES.DIAGNOSTICO]: { title: 'Diagnóstico',       description: 'Gargalos, riscos e prioridades de ação',              icon: <Activity   size={20} style={{ color: t.accent.primary }} /> },
     [ROUTES.JORNADA]:     { title: 'Jornada da Pessoa', description: 'Reincidência e comportamento de retorno por CPF',     icon: <RouteIcon  size={20} style={{ color: t.accent.primary }} /> },

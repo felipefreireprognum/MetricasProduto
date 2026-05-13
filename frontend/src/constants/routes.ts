@@ -8,6 +8,8 @@ export const ROUTES = {
   DIAGNOSTICO: '/diagnostico',
   RANKINGS:    '/rankings',
   JORNADA:     '/jornada',
+  MACROFASES:  '/macrofases',
+  EXPORTACOES: '/exportacoes',
   // Em desenvolvimento
   COMPARATIVO: '/comparativo',
   ABANDONO:    '/abandono',

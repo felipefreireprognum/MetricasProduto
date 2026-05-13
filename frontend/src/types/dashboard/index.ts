@@ -50,6 +50,35 @@ export interface EvolucaoMensal {
   taxaConversaoCpf?: number;
 }
 
+export interface MacroEvolucaoStage {
+  id: string;
+  label: string;
+  shortLabel: string;
+}
+
+export interface MacroEvolucaoRow {
+  mes: string;
+  label: string;
+  [key: string]: string | number | null;
+}
+
+export interface MacroEvolucaoTotal {
+  id: string;
+  label: string;
+  total: number;
+  abandono: number;
+  emAndamento: number;
+  creditoReprovado: number;
+  tempoMedio: number | null;
+  pctAvanco: number;
+}
+
+export interface MacroEvolucaoData {
+  stages: MacroEvolucaoStage[];
+  rows: MacroEvolucaoRow[];
+  totais: MacroEvolucaoTotal[];
+}
+
 export interface DashboardKpis {
   totalRegistros: number;
   operacoesUnicas: number;
