@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2,
   Clock3, Gauge, HelpCircle, Route, Timer, TrendingDown, Users,
@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardScreen } from '@/hooks/dashboard/useDashboardScreen';
 import LoadingState from '@/components/shared/LoadingState';
 import EmptyState from '@/components/shared/EmptyState';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
 import { MACROFASE_BADGE, MACROFASE_COLOR } from '@/theme/phaseColors';
 import type { DashboardData, EvolucaoMensal, FaseCount, TempoFase } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
@@ -256,15 +255,7 @@ function GapCard({ title, text, tokens: t }: { title: string; text: string; toke
 
 export default function DiagnosticoScreen() {
   const { tokens: t } = useAuth();
-  const { dataGlobal, loading, hasData, lastUpdated } = useDashboardScreen();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = (e: Event) => setScrolled((e.target as HTMLElement).scrollTop > 8);
-    const el = document.getElementById('diagnostico-scroll');
-    el?.addEventListener('scroll', onScroll);
-    return () => el?.removeEventListener('scroll', onScroll);
-  }, []);
+  const { dataGlobal, loading, hasData } = useDashboardScreen();
 
   const diagnostics = useMemo(() => dataGlobal ? buildDiagnostics(dataGlobal) : [], [dataGlobal]);
   const fasesEmFila = useMemo(
@@ -285,38 +276,23 @@ export default function DiagnosticoScreen() {
   const maxAbandono = Math.max(...fasesAbandono.map(f => f.abandono ?? 0), 1);
 
   if (loading) {
-    return (
-      <div className="h-full overflow-auto">
-        <LoadingState message="Carregando diagnóstico..." tokens={t} />
-      </div>
-    );
+    return <LoadingState message="Carregando diagnóstico..." tokens={t} />;
   }
 
   if (!hasData || !dataGlobal) {
     return (
-      <div className="h-full overflow-auto">
-        <EmptyState
-          message="Sem dados para diagnóstico"
-          description="Atualize ou expanda uma fonte para gerar os indicadores operacionais."
-          tokens={t}
-        />
-      </div>
+      <EmptyState
+        message="Sem dados para diagnóstico"
+        description="Atualize ou expanda uma fonte para gerar os indicadores operacionais."
+        tokens={t}
+      />
     );
   }
 
   const kpis = dataGlobal.kpis;
 
   return (
-    <div id="diagnostico-scroll" className="h-full overflow-auto">
-      <PageHeaderBar
-        title="Diagnóstico"
-        icon={<Activity size={18} style={{ color: t.accent.primary }} />}
-        description={lastUpdated ?? 'Gargalos, riscos e prioridades de ação'}
-        scrolled={scrolled}
-        tokens={t}
-      />
-
-      <div className="space-y-5 px-6 pb-8">
+    <div className="space-y-5 px-6 pb-8">
         <div className="grid gap-3 md:grid-cols-4">
           <DiagnosticCard
             item={{
@@ -430,7 +406,6 @@ export default function DiagnosticoScreen() {
             />
           </div>
         </SectionCard>
-      </div>
     </div>
   );
 }

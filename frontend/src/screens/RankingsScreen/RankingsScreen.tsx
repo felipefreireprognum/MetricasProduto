@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Trophy, Layers, XCircle, Timer, Users, TrendingDown, BarChart2, RefreshCw,
   type LucideIcon,
@@ -9,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFilters } from '@/contexts/FiltersContext';
 import { useDashboardScreen } from '@/hooks/dashboard/useDashboardScreen';
 import LoadingState from '@/components/shared/LoadingState';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
 import { MACROFASE_COLOR } from '@/theme/phaseColors';
 import type { BankTokens } from '@/theme/tokens';
 import type { FaseCount, TempoFase, UsuarioData, MacrofaseTotal, TopCpf } from '@/types/dashboard';
@@ -326,36 +324,14 @@ function buildMacrofaseAbandonoRows(fases: FaseCount[], macrofaseTotais: Macrofa
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function RankingsScreen() {
-  const { dataGlobal, loading, lastUpdated, fromCache } = useDashboardScreen();
+  const { dataGlobal, loading } = useDashboardScreen();
   const { tokens: t } = useAuth();
   const { dimensao } = useFilters();
-  const [scrolled, setScrolled] = useState(false);
 
   const semDados = !loading && !dataGlobal;
 
   return (
-    <div
-      className="h-screen overflow-y-auto"
-      style={{ backgroundColor: t.bg.base }}
-      onScroll={e => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}
-    >
-      <PageHeaderBar
-        title="Rankings"
-        icon={<Trophy size={20} style={{ color: t.accent.primary }} />}
-        description={lastUpdated ?? 'Fases e usuários com maior impacto no funil'}
-        scrolled={scrolled}
-        tokens={t}
-        badges={fromCache && (
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: '#F59E0B15', color: '#F59E0B', border: '1px solid #F59E0B30' }}
-          >
-            cache local
-          </span>
-        )}
-      />
-
-      <div className="px-6 pb-6">
+    <div className="px-6 pb-6">
         {loading ? (
           <LoadingState message="Carregando rankings..." tokens={t} />
         ) : semDados ? (
@@ -437,7 +413,6 @@ export default function RankingsScreen() {
             </div>
           </>
         )}
-      </div>
     </div>
   );
 }

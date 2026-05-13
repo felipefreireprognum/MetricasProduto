@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   ArrowUpRight, CheckCircle2, TrendingUp, Clock, User2,
-  Database, ArrowUp, ArrowDown, CalendarRange, X,
+  Database, ArrowUp, ArrowDown,
   Users, RefreshCw, UserPlus,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFilters, PERIODO_PRESETS } from '@/contexts/FiltersContext';
+import { useFilters } from '@/contexts/FiltersContext';
 import { useDashboardScreen } from '@/hooks/dashboard/useDashboardScreen';
 import LoadingState from '@/components/shared/LoadingState';
 import { EvolutionChart } from '@/components/features/EvolutionChart/EvolutionChart';
 import { VariationTable } from '@/components/features/VariationTable/VariationTable';
 import { MacroPhaseBar } from '@/components/features/MacroPhaseBar/MacroPhaseBar';
 import { CompanyPerformance } from '@/components/features/CompanyPerformance/CompanyPerformance';
-import { DateFilterModal } from '@/components/features/DateFilterModal/DateFilterModal';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
 import type { EvolucaoMensal } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
 
@@ -170,14 +168,9 @@ function fmt(v: string | number): string {
 }
 
 export default function DashboardScreen() {
-  const { dataC6, dataInter, dataGlobal, loading, hasData, fromCache, lastUpdated } = useDashboardScreen();
-  const { tokens: t, bancosStatus } = useAuth();
-  const { periodoInicio, periodoFim, periodoLabel, setPeriodo, dimensao } = useFilters();
-
-  const [scrolled, setScrolled]         = useState(false);
-  const [showDateModal, setShowDateModal] = useState(false);
-
-  const hasFilter = !!(periodoInicio || periodoFim);
+  const { dataC6, dataInter, dataGlobal, loading, hasData } = useDashboardScreen();
+  const { tokens: t } = useAuth();
+  const { dimensao } = useFilters();
 
   useEffect(() => {
     if (!dataGlobal) return;
@@ -198,110 +191,8 @@ export default function DashboardScreen() {
   const kpis     = dataGlobal?.kpis;
   const evol     = dataGlobal?.evolucaoMensal ?? [];
 
-  const dateRange = (() => {
-    const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const fmtDay = (d: Date) =>
-      `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`;
-
-    if (!dataGlobal) return null;
-    const e = dataGlobal.evolucaoMensal;
-    if (e.length > 0) {
-      const [fy, fm] = e[0].mes.split('-').map(Number);
-      const [ty, tm] = e[e.length - 1].mes.split('-').map(Number);
-      return {
-        from: fmtDay(new Date(fy, fm - 1, 1)),
-        to:   fmtDay(new Date(ty, tm, 0)),      // dia 0 do mês seguinte = último dia
-      };
-    }
-    const vols = [...dataGlobal.volumePorData].sort((a, b) => a.data.localeCompare(b.data));
-    if (vols.length > 0) {
-      const fmt = (s: string) => { const d = new Date(s + 'T12:00:00'); return isNaN(d.getTime()) ? s : fmtDay(d); };
-      return { from: fmt(vols[0].data), to: fmt(vols[vols.length - 1].data) };
-    }
-    return null;
-  })();
-
   return (
-    <div
-      className="h-screen overflow-y-auto"
-      style={{ backgroundColor: t.bg.base }}
-      onScroll={e => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}
-    >
-      <PageHeaderBar
-        title="Visão Geral"
-        description={lastUpdated ?? 'Dados consolidados de todos os bancos'}
-        scrolled={scrolled}
-        tokens={t}
-        badges={
-          <>
-            {fromCache && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                style={{ backgroundColor: '#F59E0B15', color: '#F59E0B', border: '1px solid #F59E0B30' }}
-              >
-                cache local
-              </span>
-            )}
-            {bancosStatus.map(({ banco, conectado }) => (
-              <span
-                key={banco.id}
-                className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                style={{
-                  backgroundColor: conectado ? '#10B98115' : '#EF444415',
-                  color:           conectado ? '#10B981'   : '#EF4444',
-                  border:          `1px solid ${conectado ? '#10B98130' : '#EF444430'}`,
-                }}
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: conectado ? '#10B981' : '#EF4444' }} />
-                {banco.name}
-              </span>
-            ))}
-          </>
-        }
-        right={
-          <div className="flex items-center gap-2">
-            {/* Date filter button */}
-            <button
-              onClick={() => setShowDateModal(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all hover:opacity-80"
-              style={{
-                backgroundColor: hasFilter ? `${t.accent.primary}10` : t.bg.surface,
-                border: `1px solid ${hasFilter ? t.accent.primary + '50' : t.border.default}`,
-              }}
-            >
-              <CalendarRange size={13} style={{ color: hasFilter ? t.accent.primary : t.text.muted }} />
-              {hasFilter ? (
-                <span className="text-xs font-medium tabular-nums" style={{ color: t.accent.primary }}>
-                  {periodoLabel}
-                </span>
-              ) : dateRange ? (
-                <>
-                  <span className="text-[10px] font-medium" style={{ color: t.text.muted }}>Dados de</span>
-                  <span className="text-xs font-medium tabular-nums" style={{ color: t.text.secondary }}>{dateRange.from}</span>
-                  <span className="text-[10px]" style={{ color: t.text.muted }}>→</span>
-                  <span className="text-xs font-medium tabular-nums" style={{ color: t.text.secondary }}>{dateRange.to}</span>
-                </>
-              ) : (
-                <span className="text-xs font-medium" style={{ color: t.text.muted }}>Filtrar período</span>
-              )}
-            </button>
-
-            {/* Clear filter pill */}
-            {hasFilter && (
-              <button
-                onClick={() => setPeriodo(PERIODO_PRESETS[0])}
-                className="flex items-center justify-center h-7 w-7 rounded-lg transition-colors hover:opacity-70"
-                style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}`, color: t.text.muted }}
-                title="Remover filtro"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        }
-      />
-
-      <div className="px-6 pb-6">
+    <div className="px-6 pb-6">
 
 {loading ? (
           <LoadingState message="Carregando dados dos bancos..." tokens={t} />
@@ -445,6 +336,7 @@ export default function DashboardScreen() {
                     }
                     tempos={dataGlobal.tempoMedioPorFase}
                     macrofaseTotais={dimensao === 'cpf' ? [] : (dataGlobal.macrofaseTotais ?? [])}
+                    transicoes={dataGlobal.transicoes}
                     tokens={t}
                     dimensao={dimensao}
                   />
@@ -457,11 +349,6 @@ export default function DashboardScreen() {
 
           </>
         )}
-      </div>{/* /px-6 pb-6 */}
-
-      {showDateModal && (
-        <DateFilterModal tokens={t} onClose={() => setShowDateModal(false)} />
-      )}
     </div>
   );
 }

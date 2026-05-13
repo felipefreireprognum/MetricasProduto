@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Route, Users, RefreshCw, AlertCircle, TrendingUp, Clock, Target, Repeat2, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { Users, RefreshCw, AlertCircle, TrendingUp, Clock, Target, Repeat2, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { databaseService } from '@/services/databaseService';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
 import LoadingState from '@/components/shared/LoadingState';
 import type { JornadaData } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
@@ -19,11 +18,11 @@ const MACRO_COLOR: Record<string, string> = {
   'Negociação':            '#F59E0B',
   'Análise de Documentos': '#EC4899',
   'Análise Técnica':       '#F97316',
-  'Emissão de Contrato':   '#10B981',
-  'Registro de Contratos': '#06B6D4',
-  // backward compat
   'Formalização':          '#10B981',
   'Liberação':             '#06B6D4',
+  // backward compat — Parquet legado com nomenclatura anterior
+  'Emissão de Contrato':   '#10B981',
+  'Registro de Contratos': '#06B6D4',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -437,7 +436,6 @@ function QuebraSection({ data, tokens: t }: { data: JornadaData; tokens: BankTok
 
 export default function JornadaScreen() {
   const { tokens: t, bancosConectados } = useAuth();
-  const [scrolled, setScrolled] = useState(false);
   const [data, setData]         = useState<JornadaData | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -457,20 +455,7 @@ export default function JornadaScreen() {
   const hasProgresso = data?.progresso && data.progresso.totalReincidentes > 0;
 
   return (
-    <div
-      className="h-screen overflow-y-auto"
-      style={{ backgroundColor: t.bg.base }}
-      onScroll={e => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}
-    >
-      <PageHeaderBar
-        title="Jornada da Pessoa"
-        icon={<Route size={20} style={{ color: t.accent.primary }} />}
-        description="Reincidência, pontos de abandono e comportamento de retorno por CPF"
-        scrolled={scrolled}
-        tokens={t}
-      />
-
-      <div className="px-6 pb-6">
+    <div className="px-6 pb-6">
         {loading ? (
           <LoadingState message="Analisando jornadas..." tokens={t} />
         ) : error ? (
@@ -562,7 +547,6 @@ export default function JornadaScreen() {
             )}
           </>
         )}
-      </div>
     </div>
   );
 }

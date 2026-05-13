@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   TrendingUp, TrendingDown, Minus, Calendar, Award, LineChart as LineChartIcon, Timer,
   ArrowUp, ArrowDown,
@@ -13,7 +12,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFilters } from '@/contexts/FiltersContext';
 import { useDashboardScreen } from '@/hooks/dashboard/useDashboardScreen';
 import LoadingState from '@/components/shared/LoadingState';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
 import type { EvolucaoMensal } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
 
@@ -293,10 +291,9 @@ function TempoChart({ data, tokens: t }: { data: EvolucaoMensal[]; tokens: BankT
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function TendenciasScreen() {
-  const { dataGlobal, loading, lastUpdated, fromCache } = useDashboardScreen();
+  const { dataGlobal, loading } = useDashboardScreen();
   const { tokens: t } = useAuth();
   const { dimensao } = useFilters();
-  const [scrolled, setScrolled] = useState(false);
 
   const semDados = !loading && !dataGlobal;
   const evol = dataGlobal?.evolucaoMensal ?? [];
@@ -317,26 +314,7 @@ export default function TendenciasScreen() {
   };
 
   return (
-    <div
-      className="h-screen overflow-y-auto"
-      style={{ backgroundColor: t.bg.base }}
-      onScroll={e => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}
-    >
-      <PageHeaderBar
-        title="Tendências"
-        icon={<LineChartIcon size={20} style={{ color: t.accent.primary }} />}
-        description={lastUpdated ?? 'Evolução mensal do funil — volume, conversão e tempo'}
-        scrolled={scrolled}
-        tokens={t}
-        badges={fromCache && (
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: '#F59E0B15', color: '#F59E0B', border: '1px solid #F59E0B30' }}>
-            cache local
-          </span>
-        )}
-      />
-
-      <div className="px-6 pb-6">
+    <div className="px-6 pb-6">
         {loading ? (
           <LoadingState message="Carregando tendências..." tokens={t} />
         ) : semDados ? (
@@ -403,7 +381,6 @@ export default function TendenciasScreen() {
             </div>
           </>
         )}
-      </div>
     </div>
   );
 }

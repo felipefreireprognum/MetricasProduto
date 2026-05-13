@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import { Play } from 'lucide-react';
-import type { FaseCount, TempoFase, MacrofaseTotal } from '@/types/dashboard';
+import type { FaseCount, TempoFase, MacrofaseTotal, FaseTransicao } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PIPELINE = [
-  { id: 'Simulação',             color: '#94A3B8', short: 'Simulação'      },
-  { id: 'Cadastro',              color: '#3B82F6', short: 'Cadastro'       },
-  { id: 'Crédito',               color: '#8B5CF6', short: 'Crédito'        },
-  { id: 'Negociação',            color: '#F59E0B', short: 'Negociação'     },
-  { id: 'Análise de Documentos', color: '#EC4899', short: 'Anál. Docs'     },
-  { id: 'Análise Técnica',       color: '#F97316', short: 'Anál. Técnica'  },
-  { id: 'Emissão de Contrato',   color: '#10B981', short: 'Emissão Contr.' },
+  { id: 'Simulação',             color: '#94A3B8', short: 'Simulação'     },
+  { id: 'Cadastro',              color: '#3B82F6', short: 'Cadastro'      },
+  { id: 'Crédito',               color: '#8B5CF6', short: 'Crédito'       },
+  { id: 'Negociação',            color: '#F59E0B', short: 'Negociação'    },
+  { id: 'Análise de Documentos', color: '#EC4899', short: 'Anál. Docs'    },
+  { id: 'Análise Técnica',       color: '#F97316', short: 'Anál. Técnica' },
+  { id: 'Emissão de Contrato',   color: '#059669', short: 'Emissão Contr.' },
+  { id: 'Registro de Contrato',  color: '#34D399', short: 'Reg. Contrato' },
 ] as const;
 
 function formatCount(n: number): string {
@@ -34,17 +35,19 @@ function tempoBadge(dias: number | null) {
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 export interface MacroPhaseBarProps {
-  fases:           FaseCount[];
-  tempos:          TempoFase[];
-  macrofaseTotais: MacrofaseTotal[];
-  tokens:          BankTokens;
-  dimensao?:       'operacoes' | 'cpf';
+  fases:            FaseCount[];
+  tempos:           TempoFase[];
+  macrofaseTotais:  MacrofaseTotal[];
+  transicoes?:      FaseTransicao[];
+  tokens:           BankTokens;
+  dimensao?:        'operacoes' | 'cpf';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimensao = 'operacoes' }: MacroPhaseBarProps) {
-  const [selected, setSelected] = useState<string | null>('Simulação');
+export function MacroPhaseBar({ fases, tempos, macrofaseTotais, transicoes = [], tokens: t, dimensao = 'operacoes' }: MacroPhaseBarProps) {
+  const [selected,     setSelected]     = useState<string | null>('Simulação');
+  const [showExample,  setShowExample]  = useState(false);
 
   const totalMap = (() => {
     if (macrofaseTotais.length > 0) {
@@ -66,16 +69,22 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
     phasesByMacro.set(f.macrofase, list);
   }
 
-  const concluido = macrofaseTotais.find(m => m.macrofase === 'Concluído');
-  const cancelada = macrofaseTotais.find(m => m.macrofase === 'Cancelada');
+  const concluido    = macrofaseTotais.find(m => m.macrofase === 'Concluído');
+  const cancelada    = macrofaseTotais.find(m => m.macrofase === 'Cancelada');
+  const reprovadosN  = macrofaseTotais.find(m => m.macrofase === 'Crédito')?.reprovados ?? 0;
+
+  // Fase 600 (Registro do Contrato) — pulled from Formalização bucket
+  const fase600 = fases.find(f => f.fase === 600) ?? null;
 
   // Per-macrofase abandono sum, avg tempo, and direct emAndamento sum
+  // fase 101 (Crédito Reprovado) excluída — reprovados não contam como abandono nem emAndamento do macrofase
   const abandonoByMacro    = new Map<string, number>();
   const avgTempoByMacro    = new Map<string, number | null>();
   const emAndamentoPorMacro = new Map<string, number>();
   for (const [macro, phases] of phasesByMacro.entries()) {
-    abandonoByMacro.set(macro, phases.reduce((s, p) => s + (p.abandono ?? 0), 0));
-    emAndamentoPorMacro.set(macro, phases.reduce((s, p) => s + (p.emAndamento ?? 0), 0));
+    const mainPhases = phases.filter(p => p.fase !== 101);
+    abandonoByMacro.set(macro, mainPhases.reduce((s, p) => s + (p.abandono ?? 0), 0));
+    emAndamentoPorMacro.set(macro, mainPhases.reduce((s, p) => s + (p.emAndamento ?? 0), 0));
     const withTempo = phases.filter(p => tempoMap.has(p.fase));
     avgTempoByMacro.set(
       macro,
@@ -83,6 +92,14 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
         ? withTempo.reduce((s, p) => s + tempoMap.get(p.fase)!, 0) / withTempo.length
         : null,
     );
+  }
+
+  // saidasMap for pós-emissão fluxo
+  const saidasMap = new Map<number, { para: number; nome: string; qtd: number }[]>();
+  for (const tr of transicoes) {
+    const sa = saidasMap.get(tr.de) ?? [];
+    sa.push({ para: tr.para, nome: tr.paraNome, qtd: tr.qtd });
+    saidasMap.set(tr.de, sa);
   }
 
   const totalEmAndamento = [...emAndamentoPorMacro.values()].reduce((s, v) => s + v, 0);
@@ -96,8 +113,10 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
     return 1;
   })();
 
-  const availableSteps = PIPELINE.filter(
-    p => totalMap.has(p.id) || (phasesByMacro.get(p.id)?.length ?? 0) > 0,
+  const availableSteps = PIPELINE.filter(p =>
+    p.id === 'Registro de Contrato'
+      ? fase600 != null
+      : totalMap.has(p.id) || (phasesByMacro.get(p.id)?.length ?? 0) > 0,
   );
 
   // "Em fila" per macrofase = total_here - progressed_to_next - abandoned_here
@@ -113,8 +132,11 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
   }
 
   const selectedColor  = PIPELINE.find(p => p.id === selected)?.color ?? '#3B82F6';
-  const selectedTotal  = selected ? (totalMap.get(selected) ?? 0) : 0;
-  const selectedPhases = (selected ? phasesByMacro.get(selected) ?? [] : []).slice().sort((a, b) => a.fase - b.fase);
+  const isRegistro     = selected === 'Registro de Contrato';
+  const selectedTotal  = isRegistro ? (fase600?.total ?? 0) : (selected ? (totalMap.get(selected) ?? 0) : 0);
+  const selectedPhases = isRegistro
+    ? (fase600 ? [fase600] : [])
+    : (selected ? phasesByMacro.get(selected) ?? [] : []).slice().sort((a, b) => a.fase - b.fase);
   const maxPhaseCount  = selectedPhases.length > 0 ? Math.max(...selectedPhases.map(p => p.total)) : 1;
 
   return (
@@ -146,10 +168,16 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
       <div className="px-4 py-4">
         <div className="flex items-center">
           {availableSteps.map((step, i) => {
-            const isActive = selected === step.id;
-            const total    = totalMap.get(step.id) ?? 0;
+            const isActive    = selected === step.id;
+            const isRegStep   = step.id === 'Registro de Contrato';
+            // Crédito: show total entries (approved + reprovados) — matches MacroMilestones behavior
+            const rawTotal = isRegStep ? (fase600?.total ?? 0) : (totalMap.get(step.id) ?? 0);
+            const total    = step.id === 'Crédito' ? rawTotal + reprovadosN : rawTotal;
             const pct      = ((total / baseline) * 100).toFixed(0);
             const isLast   = i === availableSteps.length - 1;
+            const stepAban = isRegStep ? (fase600?.abandono ?? 0) : (abandonoByMacro.get(step.id) ?? 0);
+            const stepEm   = isRegStep ? (fase600?.emAndamento ?? 0) : (emAndamentoPorMacro.get(step.id) ?? 0);
+            const stepTempo = isRegStep ? (tempoMap.get(600) ?? null) : (avgTempoByMacro.get(step.id) ?? null);
 
             return (
               <div key={step.id} className="flex items-center min-w-0" style={{ flex: isLast ? '0 0 auto' : '1 1 0' }}>
@@ -204,27 +232,22 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
                   </p>
 
                   {/* Abandono */}
-                  {(abandonoByMacro.get(step.id) ?? 0) > 0 && (
+                  {stepAban > 0 && (
                     <p className="mt-1 tabular-nums font-bold" style={{ fontSize: '9px', color: '#EF4444' }}>
-                      ↩ {formatCount(abandonoByMacro.get(step.id)!)}
+                      ↩ {formatCount(stepAban)}
                     </p>
                   )}
 
-                  {/* Em fila aqui — ops mode: derived formula; CPF mode: direct emAndamento sum */}
-                  {(() => {
-                    const n = dimensao === 'cpf'
-                      ? (emAndamentoPorMacro.get(step.id) ?? 0)
-                      : (emFilaByMacro.get(step.id) ?? 0);
-                    return n > 0 ? (
-                      <p className="tabular-nums font-bold" style={{ fontSize: '9px', color: '#F59E0B' }}>
-                        ⏸ {formatCount(n)}
-                      </p>
-                    ) : null;
-                  })()}
+                  {/* Em andamento — direto do backend (evita fórmula que quebra pra Crédito) */}
+                  {stepEm > 0 && (
+                    <p className="tabular-nums font-bold" style={{ fontSize: '9px', color: '#F59E0B' }}>
+                      ⏸ {formatCount(stepEm)}
+                    </p>
+                  )}
 
                   {/* Tempo médio */}
                   {(() => {
-                    const badge = tempoBadge(avgTempoByMacro.get(step.id) ?? null);
+                    const badge = tempoBadge(stepTempo);
                     return badge.label !== '—' ? (
                       <span
                         className="mt-0.5 rounded px-1 py-0.5 font-semibold tabular-nums"
@@ -236,27 +259,104 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
                   })()}
                 </button>
 
-                {/* Connector arrow */}
-                {!isLast && (
-                  <div className="flex shrink-0 items-center" style={{ width: '18px', marginTop: '-12px' }}>
-                    <div style={{ flex: 1, height: '1px', backgroundColor: t.border.default }} />
-                    <div style={{
-                      width: 0, height: 0,
-                      borderTop:    '3px solid transparent',
-                      borderBottom: '3px solid transparent',
-                      borderLeft:   `4px solid ${t.border.default}`,
-                    }} />
-                  </div>
-                )}
+                {/* Connector — step-to-step conversion rate */}
+                {!isLast && (() => {
+                  const nextStep  = availableSteps[i + 1];
+                  const nextTotal = nextStep ? (totalMap.get(nextStep.id) ?? 0) : 0;
+                  const pct       = total > 0 ? Math.round(nextTotal / total * 100) : 0;
+                  const pctColor  = pct >= 70 ? '#16A34A' : pct >= 40 ? '#CA8A04' : '#DC2626';
+                  return (
+                    <div
+                      className="flex shrink-0 flex-col items-center justify-center gap-0.5"
+                      style={{ width: '36px', marginTop: '-16px' }}
+                    >
+                      <span
+                        className="tabular-nums font-bold leading-none"
+                        style={{ fontSize: '8px', color: pctColor }}
+                      >
+                        {pct}%
+                      </span>
+                      <div className="flex items-center w-full">
+                        <div style={{ flex: 1, height: '1px', backgroundColor: pctColor, opacity: 0.4 }} />
+                        <div style={{
+                          width: 0, height: 0,
+                          borderTop:    '3px solid transparent',
+                          borderBottom: '3px solid transparent',
+                          borderLeft:   `4px solid ${pctColor}`,
+                          opacity: 0.6,
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
+        </div>
+
+        {/* ── Legenda — equação do funil ───────────────────────────────── */}
+        <div
+          className="mt-3 rounded-lg px-3 py-2"
+          style={{ backgroundColor: t.bg.base }}
+        >
+          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+            <span style={{ fontSize: '9px', color: t.text.muted }}>Por etapa:</span>
+            <span className="font-black" style={{ fontSize: '9px', color: t.text.secondary }}>N chegaram</span>
+            <span style={{ fontSize: '9px', color: t.text.muted }}>=</span>
+            <span className="font-bold" style={{ fontSize: '9px', color: t.text.secondary }}>N etapa anterior</span>
+            <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+            <span className="font-bold" style={{ fontSize: '9px', color: '#EF4444' }}>↩ cancelaram lá</span>
+            <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+            <span className="font-bold" style={{ fontSize: '9px', color: '#F59E0B' }}>⏸ ficaram parados lá</span>
+            <button
+              onClick={() => setShowExample(v => !v)}
+              className="ml-1 rounded px-1.5 py-0.5 font-semibold"
+              style={{ fontSize: '8px', color: t.text.muted, border: `1px solid ${t.border.default}` }}
+            >
+              {showExample ? 'ocultar' : 'ver exemplo'}
+            </button>
+          </div>
+
+          {showExample && availableSteps.length > 1 && (() => {
+            const exStep     = availableSteps[0];
+            const exTot      = totalMap.get(exStep.id) ?? 0;
+            const exNextStep = availableSteps[1];
+            const exAban     = abandonoByMacro.get(exStep.id) ?? 0;
+            const exPaus     = emAndamentoPorMacro.get(exStep.id) ?? 0;
+            const exCalc     = exTot - exAban - exPaus;
+            return (
+              <div
+                className="flex items-center justify-center gap-1 flex-wrap mt-2 pt-2"
+                style={{ borderTop: `1px solid ${t.border.subtle}` }}
+              >
+                <span className="font-bold" style={{ fontSize: '9px', color: exStep.color }}>
+                  Ex. ({exStep.short}):
+                </span>
+                <span className="font-black tabular-nums" style={{ fontSize: '9px', color: t.text.secondary }}>
+                  {exTot.toLocaleString('pt-BR')}
+                </span>
+                <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+                <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: '#EF4444' }}>
+                  ↩ {exAban.toLocaleString('pt-BR')}
+                </span>
+                <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+                <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: '#F59E0B' }}>
+                  ⏸ {exPaus.toLocaleString('pt-BR')}
+                </span>
+                <span style={{ fontSize: '9px', color: t.text.muted }}>=</span>
+                <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: exNextStep?.color ?? '#16A34A' }}>
+                  {exCalc.toLocaleString('pt-BR')} chegaram ao {exNextStep?.short}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
       {/* ── Drill-down panel ───────────────────────────────────────────────── */}
       {selected && selectedPhases.length > 0 && (
         <div style={{ borderTop: `1px solid ${t.border.subtle}`, backgroundColor: t.bg.base }}>
+
           {/* Panel header */}
           <div
             className="px-5 py-3"
@@ -279,10 +379,14 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
             {(() => {
               const selIdx   = availableSteps.findIndex(s => s.id === selected);
               const nextId   = availableSteps[selIdx + 1]?.id;
-              const nextTot  = nextId ? (totalMap.get(nextId) ?? 0) : (concluido?.total ?? 0);
-              const abandono = abandonoByMacro.get(selected!) ?? 0;
+              const nextTot  = nextId && nextId !== 'Registro de Contrato'
+                ? (totalMap.get(nextId) ?? 0)
+                : nextId === 'Registro de Contrato'
+                  ? (fase600?.total ?? 0)
+                  : (concluido?.total ?? 0);
+              const abandono = isRegistro ? (fase600?.abandono ?? 0) : (abandonoByMacro.get(selected!) ?? 0);
               // Use direct backend count (last-phase ops) — avoids negative derived formula
-              const pausados = emAndamentoPorMacro.get(selected!) ?? 0;
+              const pausados = isRegistro ? (fase600?.emAndamento ?? 0) : (emAndamentoPorMacro.get(selected!) ?? 0);
               if (selectedTotal === 0) return null;
               return (
                 <div className="flex items-center gap-1 flex-wrap">
@@ -338,26 +442,35 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
           >
             {selectedPhases.map(p => {
-              const barPct = (p.total / maxPhaseCount) * 100;
-              const badge  = tempoBadge(tempoMap.get(p.fase) ?? null);
+              const barPct      = (p.total / maxPhaseCount) * 100;
+              const badge       = tempoBadge(tempoMap.get(p.fase) ?? null);
+              const isReprovado = p.fase === 101;
               return (
                 <div
                   key={p.fase}
-                  className="rounded-lg p-3"
+                  className="rounded-lg overflow-hidden"
                   style={{
-                    backgroundColor: t.bg.surface,
-                    border:     `1px solid ${t.border.default}`,
-                    borderLeft: `3px solid ${selectedColor}`,
+                    backgroundColor: isReprovado ? '#FFF5F5' : t.bg.surface,
+                    border:     `1px solid ${isReprovado ? '#FECDD3' : t.border.default}`,
+                    borderLeft: `3px solid ${isReprovado ? '#EF4444' : selectedColor}`,
                   }}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start justify-between gap-2 p-3" style={{ paddingBottom: (p.abandono ?? 0) > 0 ? '8px' : '12px' }}>
                     <div className="min-w-0">
-                      <p
-                        className="text-xs font-semibold leading-tight truncate"
-                        style={{ color: t.text.primary }}
-                      >
-                        {p.nome}
-                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p
+                          className="text-xs font-semibold leading-tight truncate"
+                          style={{ color: isReprovado ? '#DC2626' : t.text.primary }}
+                        >
+                          {p.nome}
+                        </p>
+                        {p.fase === 600 && (
+                          <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold whitespace-nowrap"
+                                style={{ backgroundColor: '#DCFCE7', color: '#16A34A', border: '1px solid #BBF7D0' }}>
+                            Fim do Funil
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] tabular-nums mt-0.5" style={{ color: t.text.muted }}>
                         Fase {p.fase}
                       </p>
@@ -365,7 +478,7 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
                     <div className="flex flex-col items-end shrink-0 gap-1">
                       <p
                         className="text-sm font-black tabular-nums leading-tight"
-                        style={{ color: t.text.primary }}
+                        style={{ color: isReprovado ? '#DC2626' : t.text.primary }}
                       >
                         {p.total.toLocaleString('pt-BR')}
                       </p>
@@ -378,34 +491,147 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
                     </div>
                   </div>
 
-                  <div
-                    className="h-1 overflow-hidden rounded-full"
-                    style={{ backgroundColor: t.border.default }}
-                  >
+                  <div className="mx-3 h-1 overflow-hidden rounded-full" style={{ backgroundColor: t.border.default }}>
                     <div
                       className="h-full rounded-full"
-                      style={{
-                        width:           `${Math.max(barPct, 2)}%`,
-                        backgroundColor: selectedColor,
-                        opacity:         0.5,
-                      }}
+                      style={{ width: `${Math.max(barPct, 2)}%`, backgroundColor: selectedColor, opacity: 0.5 }}
                     />
                   </div>
 
                   {(p.abandono ?? 0) > 0 && (
-                    <p className="mt-1.5 text-[9px] font-semibold" style={{ color: '#DC2626' }}>
+                    <p className="px-3 pt-1.5 text-[9px] font-semibold" style={{ color: '#DC2626' }}>
                       ↩ {p.abandono!.toLocaleString('pt-BR')} cancelaram nesta fase
                     </p>
                   )}
+
                 </div>
               );
             })}
           </div>
+
+          {/* Pós-emissão — shown inside drill-down when Emissão de Contrato or Registro de Contrato is selected */}
+          {(selected === 'Emissão de Contrato' || selected === 'Registro de Contrato') && (() => {
+            const posGroups: { label: string; color: string; phases: FaseCount[] }[] = [
+              { label: 'Formalização', color: '#10B981', phases: (phasesByMacro.get('Formalização') ?? []).slice().sort((a, b) => a.fase - b.fase) },
+              { label: 'Liberação',    color: '#06B6D4', phases: (phasesByMacro.get('Liberação') ?? []).slice().sort((a, b) => a.fase - b.fase) },
+            ].filter(g => g.phases.length > 0);
+            if (posGroups.length === 0) return null;
+            const maxPosCount = Math.max(...posGroups.flatMap(g => g.phases.map(p => p.total)), 1);
+            return (
+              <div className="px-4 pb-4 pt-2" style={{ borderTop: `1px solid ${t.border.subtle}` }}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+                  <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: t.text.muted }}>
+                    Pós-emissão
+                  </span>
+                  <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  {posGroups.map(g => (
+                    <div key={g.label}>
+                      {posGroups.length > 1 && (
+                        <div className="flex items-center gap-1.5 mb-1 px-1 pt-1">
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                          <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: t.text.muted }}>{g.label}</span>
+                        </div>
+                      )}
+                      {g.phases.map(p => {
+                        const barPct   = (p.total / maxPosCount) * 100;
+                        const badge    = tempoBadge(tempoMap.get(p.fase) ?? null);
+                        const posSaidas = saidasMap.get(p.fase) ?? [];
+                        return (
+                          <div key={p.fase} className="mb-1">
+                            <div
+                              className="flex items-center gap-2 rounded-t px-3 py-1.5"
+                              style={{ backgroundColor: `${g.color}08`, borderLeft: `2px solid ${g.color}50` }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="truncate text-[10px] font-medium leading-tight" style={{ color: t.text.primary }}>{p.nome}</p>
+                                <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>Fase {p.fase}</p>
+                              </div>
+                              <div className="w-14 h-1 overflow-hidden rounded-full shrink-0" style={{ backgroundColor: t.border.default }}>
+                                <div className="h-full rounded-full" style={{ width: `${Math.max(barPct, 2)}%`, backgroundColor: g.color, opacity: 0.5 }} />
+                              </div>
+                              <p className="text-[11px] font-semibold tabular-nums shrink-0" style={{ color: t.text.secondary }}>
+                                {p.total.toLocaleString('pt-BR')}
+                              </p>
+                              {baseline > 0 && (
+                                <p className="text-[9px] tabular-nums shrink-0" style={{ color: t.text.muted }}>
+                                  {((p.total / baseline) * 100).toFixed(1)}%
+                                </p>
+                              )}
+                              <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold tabular-nums"
+                                    style={{ backgroundColor: badge.bg, color: badge.text }}>
+                                {badge.label}
+                              </span>
+                              {(p.abandono ?? 0) > 0 && (
+                                <p className="shrink-0 text-[9px] font-bold tabular-nums" style={{ color: '#EF4444' }}>
+                                  ↩ {formatCount(p.abandono!)}
+                                </p>
+                              )}
+                            </div>
+                            {posSaidas.length > 0 && (
+                              <div
+                                className="flex flex-wrap items-center gap-1 px-3 py-1 rounded-b"
+                                style={{ backgroundColor: `${g.color}05`, borderLeft: `2px solid ${g.color}20` }}
+                              >
+                                <span className="text-[8px] font-bold uppercase tracking-wider shrink-0" style={{ color: t.text.muted }}>
+                                  fluxo
+                                </span>
+                                {[...posSaidas].sort((a, b) => b.qtd - a.qtd).map(s => {
+                                  const isReprov    = s.para === 101;
+                                  const isCanceled  = s.para >= 900;
+                                  const isConcluido = s.para === 800;
+                                  const isNeg       = isReprov || isCanceled;
+                                  return (
+                                    <span key={s.para}
+                                          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[8px] font-medium tabular-nums"
+                                          style={{
+                                            backgroundColor: isConcluido ? '#F0FDF4' : isNeg ? '#FFF1F2' : t.bg.surface,
+                                            color:           isConcluido ? '#16A34A'  : isNeg ? '#DC2626'  : t.text.muted,
+                                            border:          isConcluido ? '1px solid #BBF7D0' : isNeg ? '1px solid #FECDD3' : `1px solid ${t.border.subtle}`,
+                                          }}>
+                                      <span style={{ fontWeight: 700 }}>{isReprov ? '✗' : isConcluido ? '✓' : '→'}</span>
+                                      {s.nome}
+                                      <span className="opacity-60 ml-0.5">{formatCount(s.qtd)}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {concluido && (
+                    <div
+                      className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2"
+                      style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
+                    >
+                      <div className="h-6 w-0.5 shrink-0 rounded-full" style={{ backgroundColor: '#16A34A' }} />
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#15803D' }}>
+                          Concluído · fase 800
+                        </p>
+                        <p className="text-sm font-black tabular-nums leading-tight" style={{ color: '#14532D' }}>
+                          {concluido.total.toLocaleString('pt-BR')}
+                        </p>
+                        <p className="text-[9px]" style={{ color: '#16A34A' }}>
+                          {((concluido.total / baseline) * 100).toFixed(1)}% conversão total
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
-      {/* ── Saídas — always at the very bottom ─────────────────────────────── */}
-      {(concluido || cancelada || totalEmAndamento > 0) && (
+      {/* ── Saídas — só aparece quando nenhuma etapa está selecionada ────────── */}
+      {!selected && (concluido || cancelada || totalEmAndamento > 0) && (
         <div
           className="flex items-center gap-3 px-5 pb-4"
           style={{ borderTop: `1px solid ${t.border.subtle}`, paddingTop: '12px' }}
@@ -470,35 +696,6 @@ export function MacroPhaseBar({ fases, tempos, macrofaseTotais, tokens: t, dimen
         </div>
       )}
 
-      {/* ── Pós-emissão ─────────────────────────────────────────────────────── */}
-      {(() => {
-        const regCount = totalMap.get('Registro de Contratos') ?? totalMap.get('Liberação') ?? 0;
-        if (regCount === 0) return null;
-        return (
-          <div className="px-5 pb-4" style={{ borderTop: `1px solid ${t.border.subtle}`, paddingTop: '12px' }}>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
-              <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: t.text.muted }}>
-                Pós-emissão
-              </span>
-              <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
-            </div>
-            <div className="flex items-center gap-2.5 rounded-lg px-3.5 py-2"
-                 style={{ backgroundColor: '#06B6D40D', border: '1px solid #06B6D430', width: 'fit-content' }}>
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: '#06B6D4' }} />
-              <div>
-                <p className="text-[10px] font-medium" style={{ color: t.text.secondary }}>Registro de Contratos</p>
-                <p className="text-sm font-black tabular-nums" style={{ color: '#06B6D4' }}>
-                  {formatCount(regCount)}
-                </p>
-                <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>
-                  {baseline > 0 ? `${((regCount / baseline) * 100).toFixed(1)}% do início` : ''}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

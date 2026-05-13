@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import {
   ChevronDown, ChevronUp, Layers,
   Scan, UserPlus, Landmark, MessageSquare,
-  FileSearch, Wrench, PenLine, Unlock,
+  FileSearch, Wrench, FilePen, Stamp, PenLine, Unlock,
   type LucideIcon,
 } from 'lucide-react';
 import { MACROFASE_COLOR, MACROFASE_ORDER } from '@/theme/phaseColors';
@@ -20,13 +20,13 @@ const MACROFASES = [
   { id: 'Negociação',             color: '#F59E0B' },
   { id: 'Análise de Documentos',  color: '#EC4899' },
   { id: 'Análise Técnica',        color: '#F97316' },
-  { id: 'Emissão de Contrato',    color: '#10B981' },
-  { id: 'Registro de Contratos',  color: '#06B6D4' },
+  { id: 'Emissão de Contrato',    color: '#059669' },  // fim do funil (fases 500-501)
+  { id: 'Formalização',           color: '#10B981' },  // pós-emissão (fases 502-601)
+  { id: 'Liberação',              color: '#06B6D4' },  // pós-emissão (fases 700-701)
   { id: 'Concluído',              color: '#16A34A' },
   { id: 'Cancelada',              color: '#EF4444' },
-  // backward compat com Parquet antigo
-  { id: 'Formalização',           color: '#10B981' },
-  { id: 'Liberação',              color: '#06B6D4' },
+  { id: 'Registro de Contrato',   color: '#34D399' },  // phantom chevron — shares expanded state with Emissão de Contrato
+  { id: 'Registro de Contratos',  color: '#06B6D4' },  // backward compat
 ] as const;
 
 type MacrofaseId = typeof MACROFASES[number]['id'];
@@ -38,17 +38,23 @@ const MACROFASE_ICONS: Record<string, LucideIcon> = {
   'Negociação':            MessageSquare,
   'Análise de Documentos': FileSearch,
   'Análise Técnica':       Wrench,
-  'Emissão de Contrato':   PenLine,
-  'Registro de Contratos': Unlock,
-  // backward compat
+  'Emissão de Contrato':   FilePen,
+  'Registro de Contrato':  Stamp,
   'Formalização':          PenLine,
   'Liberação':             Unlock,
+  'Registro de Contratos': Unlock,
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Saida {
   para: number;
+  nome: string;
+  qtd:  number;
+}
+
+interface Entrada {
+  de:   number;
   nome: string;
   qtd:  number;
 }
@@ -61,6 +67,7 @@ interface PhaseDetail {
   abandono:    number;
   emAndamento: number;
   saidas:      Saida[];
+  entradas:    Entrada[];
 }
 
 interface MacrofaseRow {
@@ -93,7 +100,7 @@ export interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const POS_EMISSAO_IDS = new Set(['Registro de Contratos', 'Liberação']);
+const POS_EMISSAO_IDS = new Set(['Formalização', 'Liberação', 'Registro de Contratos']);
 
 function tempoBadge(dias: number | null) {
   if (dias == null) return { bg: '#F1F5F9', text: '#94A3B8', label: '—' };
@@ -109,40 +116,176 @@ function formatCount(n: number): string {
   return n.toLocaleString('pt-BR');
 }
 
-function PosEmissaoSection({ rows, baseline, tokens: t }: {
-  rows:     MacrofaseRow[];
-  baseline: number;
-  tokens:   BankTokens;
+function PosEmissaoSection({ rows, baseline, tokens: t, concluido, faseColorMap, faseMacrofaseMap }: {
+  rows:             MacrofaseRow[];
+  baseline:         number;
+  tokens:           BankTokens;
+  concluido?:       MacrofaseRow | null;
+  faseColorMap?:    Map<number, string>;
+  faseMacrofaseMap?: Map<number, string>;
 }) {
-  if (!rows.length) return null;
+  const hasPhases = rows.some((m) => m.phases.length > 0);
+  if (!rows.length || !hasPhases) return null;
+
+  const maxCount = Math.max(...rows.flatMap((m) => m.phases.map((p) => p.total)), 1);
+  const multiGroup = rows.filter((m) => m.phases.length > 0).length > 1;
+
   return (
     <div className="px-4 pb-4 pt-2">
       <div className="flex items-center gap-3 mb-2">
         <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
         <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: t.text.muted }}>
-          Pós-emissão
+          Pós
         </span>
         <div className="h-px flex-1" style={{ backgroundColor: t.border.subtle }} />
       </div>
-      <div className="flex flex-wrap gap-2">
-        {rows.map((m) => (
-          <div
-            key={m.id}
-            className="flex items-center gap-2.5 rounded-lg px-3.5 py-2"
-            style={{ backgroundColor: `${m.color}0D`, border: `1px solid ${m.color}30` }}
-          >
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
-            <div>
-              <p className="text-[10px] font-medium" style={{ color: t.text.secondary }}>{m.label}</p>
-              <p className="text-sm font-black tabular-nums" style={{ color: m.color }}>{formatCount(m.count)}</p>
-              {baseline > 0 && (
-                <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>
-                  {((m.count / baseline) * 100).toFixed(1)}% do início
-                </p>
+      <div className="flex flex-col gap-1">
+        {rows.map((m) => {
+          if (m.phases.length === 0) return null;
+          return (
+            <div key={m.id}>
+              {multiGroup && (
+                <div className="flex items-center gap-1.5 mb-1 px-1 pt-1">
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                  <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: t.text.muted }}>
+                    {m.label}
+                  </span>
+                </div>
               )}
+              {m.phases.map((p) => {
+                const barPct = (p.total / maxCount) * 100;
+                const badge  = tempoBadge(p.tempo);
+                return (
+                  <div key={p.fase} className="mb-1">
+                    <div
+                      className="flex items-center gap-2 rounded px-3 py-1.5"
+                      style={{ backgroundColor: `${m.color}08`, borderLeft: `2px solid ${m.color}50` }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-[10px] font-medium leading-tight" style={{ color: t.text.primary }}>{p.nome}</p>
+                        <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>Fase {p.fase}</p>
+                      </div>
+                      <div className="w-16 h-1 overflow-hidden rounded-full shrink-0" style={{ backgroundColor: t.border.default }}>
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(barPct, 2)}%`, backgroundColor: m.color, opacity: 0.5 }} />
+                      </div>
+                      <p className="text-[11px] font-semibold tabular-nums shrink-0" style={{ color: t.text.secondary }}>
+                        {p.total.toLocaleString('pt-BR')}
+                      </p>
+                      {baseline > 0 && (
+                        <p className="text-[9px] tabular-nums shrink-0" style={{ color: t.text.muted }}>
+                          {((p.total / baseline) * 100).toFixed(1)}%
+                        </p>
+                      )}
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold tabular-nums"
+                            style={{ backgroundColor: badge.bg, color: badge.text }}>
+                        {badge.label}
+                      </span>
+                      {p.abandono > 0 && (
+                        <p className="shrink-0 text-[9px] font-bold tabular-nums" style={{ color: '#EF4444' }}>
+                          ↩ {formatCount(p.abandono)}
+                        </p>
+                      )}
+                    </div>
+                    {(p.saidas.length > 0 || p.entradas.length > 0) && (
+                      <div className="flex flex-col" style={{ backgroundColor: `${m.color}05`, borderLeft: `2px solid ${m.color}20` }}>
+                        {p.saidas.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 px-3 py-1.5">
+                            <span className="text-[8px] font-bold uppercase tracking-wider shrink-0 mr-1" style={{ color: t.text.muted }}>
+                              Saiu para →
+                            </span>
+                            {[...p.saidas].sort((a, b) => b.qtd - a.qtd).map((s) => {
+                              const isReprov    = s.para === 101;
+                              const isCanceled  = s.para >= 900;
+                              const isConcluido = s.para === 800;
+                              const isNeg       = isReprov || isCanceled;
+                              const dc          = faseColorMap?.get(s.para) ?? m.color;
+                              const isSameMacro = !isNeg && !isConcluido && faseMacrofaseMap?.get(s.para) === m.id;
+                              return (
+                                <span
+                                  key={s.para}
+                                  className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums"
+                                  style={{
+                                    backgroundColor: isConcluido ? '#F0FDF4' : isNeg ? '#FFF1F2' : `${dc}12`,
+                                    color:           isConcluido ? '#16A34A'  : isNeg ? '#DC2626'  : t.text.secondary,
+                                    border:          isConcluido ? '1px solid #BBF7D0' : isNeg ? '1px solid #FECDD3' : `1px solid ${dc}30`,
+                                    borderStyle:     isSameMacro ? 'dashed' : 'solid',
+                                    opacity:         isSameMacro ? 0.65 : 1,
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 700, color: isConcluido ? '#16A34A' : isNeg ? '#EF4444' : dc }}>
+                                    {isReprov ? '✗' : isConcluido ? '✓' : '→'}
+                                  </span>
+                                  {s.nome ?? `Fase ${s.para}`}
+                                  <span className="font-bold ml-0.5">{formatCount(s.qtd)}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {p.entradas.length > 0 && (
+                          <div
+                            className="flex flex-wrap items-center gap-1 px-3 py-1.5"
+                            style={{ borderTop: p.saidas.length > 0 ? `1px solid ${m.color}15` : 'none' }}
+                          >
+                            <span className="text-[8px] font-bold uppercase tracking-wider shrink-0 mr-1" style={{ color: t.text.muted }}>
+                              Recebeu de ←
+                            </span>
+                            {[...p.entradas].sort((a, b) => b.qtd - a.qtd).map((e) => {
+                              const sourceMacro = faseMacrofaseMap?.get(e.de) ?? '';
+                              const currentMacroOrder = MACROFASE_ORDER.indexOf(m.id);
+                              const sourceOrder = MACROFASE_ORDER.indexOf(sourceMacro);
+                              const isBackward  = sourceOrder > currentMacroOrder && sourceOrder !== -1 && currentMacroOrder !== -1;
+                              const isSameMacro = !isBackward && sourceMacro === m.id;
+                              const dc          = faseColorMap?.get(e.de) ?? t.text.muted;
+                              return (
+                                <span
+                                  key={e.de}
+                                  className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-semibold tabular-nums"
+                                  style={{
+                                    backgroundColor: isBackward ? '#FFF7ED' : `${dc}10`,
+                                    color:           isBackward ? '#B45309'  : t.text.secondary,
+                                    border:          isBackward ? '1px solid #FED7AA' : `1px solid ${dc}25`,
+                                    borderStyle:     isSameMacro ? 'dashed' : 'solid',
+                                    opacity:         isSameMacro ? 0.65 : 1,
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 700, color: isBackward ? '#F59E0B' : dc }}>
+                                    {isBackward ? '↩' : '←'}
+                                  </span>
+                                  {e.nome}
+                                  <span className="font-bold ml-0.5">{formatCount(e.qtd)}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        {concluido && (
+          <div
+            className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2"
+            style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
+          >
+            <div className="h-6 w-0.5 shrink-0 rounded-full" style={{ backgroundColor: '#16A34A' }} />
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#15803D' }}>
+                Concluído · fase 800
+              </p>
+              <p className="text-sm font-black tabular-nums leading-tight" style={{ color: '#14532D' }}>
+                {concluido.count.toLocaleString('pt-BR')}
+              </p>
+              <p className="text-[9px]" style={{ color: '#16A34A' }}>
+                {((concluido.count / baseline) * 100).toFixed(1)}% conversão total
+              </p>
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -157,11 +300,17 @@ function buildRows(
   const tempoMap        = new Map(tempos.map((tf) => [tf.fase, tf.tempoMedioDias]));
   const macroTotalMap   = new Map(macrofaseTotais.map((m) => [m.macrofase, m.total]));
   const macroReprovMap  = new Map(macrofaseTotais.map((m) => [m.macrofase, m.reprovados ?? 0]));
-  const saidasMap    = new Map<number, Saida[]>();
+  const faseNomeMap     = new Map(fases.map((f) => [f.fase, f.nome]));
+  const saidasMap       = new Map<number, Saida[]>();
+  const entradasMap     = new Map<number, Entrada[]>();
   for (const tr of transicoes) {
-    const list = saidasMap.get(tr.de) ?? [];
-    list.push({ para: tr.para, nome: tr.paraNome, qtd: tr.qtd });
-    saidasMap.set(tr.de, list);
+    const saList = saidasMap.get(tr.de) ?? [];
+    saList.push({ para: tr.para, nome: tr.paraNome, qtd: tr.qtd });
+    saidasMap.set(tr.de, saList);
+
+    const enList = entradasMap.get(tr.para) ?? [];
+    enList.push({ de: tr.de, nome: faseNomeMap.get(tr.de) ?? `Fase ${tr.de}`, qtd: tr.qtd });
+    entradasMap.set(tr.para, enList);
   }
 
   const buckets = new Map<string, PhaseDetail[]>(MACROFASES.map((m) => [m.id, []]));
@@ -177,6 +326,7 @@ function buildRows(
       abandono:    fase.abandono ?? 0,
       emAndamento: fase.emAndamento ?? 0,
       saidas:      saidasMap.get(fase.fase) ?? [],
+      entradas:    entradasMap.get(fase.fase) ?? [],
     });
   }
 
@@ -187,23 +337,49 @@ function buildRows(
 
   for (const mf of MACROFASES) {
     const phases = (buckets.get(mf.id) ?? []).sort((a, b) => a.fase - b.fase);
-    if (phases.length === 0) continue;
+    // 'Emissão de Contrato' is always the defined funnel endpoint — show even when no ops reached it yet
+    if (phases.length === 0 && mf.id !== 'Emissão de Contrato') continue;
 
-    const count       = macroTotalMap.get(mf.id) ?? phases.reduce((s, p) => s + p.total, 0);
-    const abandono    = phases.reduce((s, p) => s + p.abandono, 0);
-    const emAndamento = phases.reduce((s, p) => s + p.emAndamento, 0);
+    const reprovados  = macroReprovMap.get(mf.id) ?? 0;
+    const emissaoPrincipal = mf.id === 'Emissão de Contrato' ? phases.find(p => p.fase === 501) : null;
+    const count       = (emissaoPrincipal?.total ?? macroTotalMap.get(mf.id) ?? phases.reduce((s, p) => s + p.total, 0)) + reprovados;
+    // fase 101 não entra no abandono nem no emAndamento do macrofase — são reprovados, já contabilizados em ✗ reprov.
+    const abandono    = emissaoPrincipal?.abandono ?? phases.filter(p => p.fase !== 101).reduce((s, p) => s + p.abandono, 0);
+    const emAndamento = emissaoPrincipal?.emAndamento ?? phases.filter(p => p.fase !== 101).reduce((s, p) => s + p.emAndamento, 0);
     const withTempo   = phases.filter((p) => p.tempo != null);
-    const avgTempo    = withTempo.length
+    const avgTempo    = emissaoPrincipal?.tempo ?? (withTempo.length
       ? withTempo.reduce((s, p) => s + p.tempo!, 0) / withTempo.length
-      : null;
+      : null);
 
-    const reprovados = macroReprovMap.get(mf.id) ?? 0;
     const row: MacrofaseRow = { id: mf.id as MacrofaseId, label: mf.id, color: mf.color, count, avgTempo, abandono, emAndamento, phases, reprovados };
 
     if      (mf.id === 'Concluído')        concluídoRow = row;
     else if (mf.id === 'Cancelada')        canceladaRow = row;
     else if (POS_EMISSAO_IDS.has(mf.id))  posEmissaoRows.push(row);
     else                                   funnelRows.push(row);
+  }
+
+  // Sobe fase 600 (Registro do Contrato) para a seção de Emissão de Contrato
+  // e cria um chevron visual separado no funil com cor mais clara
+  const emissaoRow = funnelRows.find(r => r.id === 'Emissão de Contrato');
+  const formRow    = posEmissaoRows.find(r => r.id === 'Formalização');
+  if (emissaoRow) {
+    const registroSourceRow = posEmissaoRows.find(r => r.phases.some(p => p.fase === 600)) ?? formRow;
+    const idx = registroSourceRow?.phases.findIndex(p => p.fase === 600) ?? -1;
+    const fase600 = idx !== -1 && registroSourceRow ? registroSourceRow.phases.splice(idx, 1)[0] : null;
+    if (fase600) {
+      funnelRows.push({
+        id: 'Registro de Contrato' as MacrofaseId,
+        label: 'Registro de Contrato',
+        color: '#34D399',
+        count: fase600.total,
+        avgTempo: fase600.tempo,
+        abandono: fase600.abandono,
+        emAndamento: fase600.emAndamento,
+        phases: [fase600],
+        reprovados: 0,
+      });
+    }
   }
 
   return { funnelRows, posEmissaoRows, concluídoRow, canceladaRow };
@@ -308,7 +484,15 @@ function FunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, t
                   >
                     {i + 1}
                   </span>
-                  <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>{m.label}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>{m.label}</p>
+                    {(m.reprovados ?? 0) > 0 && (
+                      <span className="shrink-0 rounded px-1 py-0.5 text-[8px] font-bold whitespace-nowrap"
+                            style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
+                        ✗ {(m.reprovados ?? 0).toLocaleString('pt-BR')} reprov.
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full pl-2" style={{ backgroundColor: t.border.default }}>
                   <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 1)}%`, backgroundColor: m.color, opacity: 0.65 }} />
@@ -329,24 +513,39 @@ function FunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, t
 
               {/* Phase sub-rows */}
               {m.phases.map((p) => {
-                const pBadge = tempoBadge(p.tempo);
+                const pBadge      = tempoBadge(p.tempo);
+                const isReprovado = p.fase === 101;
                 return (
                   <div
                     key={p.fase}
                     className="flex items-center gap-3 px-3 py-1.5"
-                    style={{ borderTop: `1px solid ${t.border.subtle}`, backgroundColor: t.bg.surface }}
+                    style={{
+                      borderTop: `1px solid ${isReprovado ? '#FECDD3' : t.border.subtle}`,
+                      backgroundColor: isReprovado ? '#FFF5F5' : t.bg.surface,
+                      borderLeft: isReprovado ? '3px solid #EF4444' : undefined,
+                    }}
                   >
                     {/* indent spacer */}
                     <div className="w-5 shrink-0" />
                     {/* name + fase code */}
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-[10px] font-medium leading-tight" style={{ color: t.text.secondary }}>
-                        {p.nome}
-                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="truncate text-[10px] font-medium leading-tight"
+                           style={{ color: isReprovado ? '#DC2626' : t.text.secondary }}>
+                          {p.nome}
+                        </p>
+                        {isReprovado && (
+                          <span className="shrink-0 rounded px-1 py-0.5 text-[8px] font-bold whitespace-nowrap"
+                                style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
+                            ✗ Fim de linha
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[9px] tabular-nums" style={{ color: t.text.muted }}>Fase {p.fase}</p>
                     </div>
                     {/* count */}
-                    <p className="text-[11px] font-semibold tabular-nums shrink-0" style={{ color: t.text.secondary }}>
+                    <p className="text-[11px] font-semibold tabular-nums shrink-0"
+                       style={{ color: isReprovado ? '#DC2626' : t.text.secondary }}>
                       {p.total.toLocaleString('pt-BR')}
                     </p>
                     {/* tempo */}
@@ -367,6 +566,9 @@ function FunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, t
                   </div>
                 );
               })}
+              {m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0 && (
+                <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} concluido={concluídoRow} />
+              )}
             </div>
           );
         })}
@@ -408,8 +610,6 @@ function FunnelMode({ funnelRows, posEmissaoRows, concluídoRow, canceladaRow, t
           </div>
         </div>
       )}
-
-      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
     </div>
   );
 }
@@ -598,18 +798,20 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
       </div>
 
       {funnelRows.map((m, i) => {
-        const pct    = (m.count / baseline) * 100;
-        const badge  = tempoBadge(m.avgTempo);
-        const isOpen = expanded.has(m.id);
+        const pct          = (m.count / baseline) * 100;
+        const badge        = tempoBadge(m.avgTempo);
+        const isExpandable = m.phases.length > 0 || (m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0);
+        const isOpen       = expanded.has(m.id) && isExpandable;
 
         return (
           <div key={m.id} style={{ borderBottom: DASH }}>
             <button
-              onClick={() => toggle(m.id)}
+              onClick={() => isExpandable && toggle(m.id)}
               className="flex w-full items-center gap-4 px-5 py-3.5 text-left"
               style={{
                 backgroundColor: isOpen ? `${m.color}0C` : t.bg.surface,
                 borderLeft: `3px solid ${m.color}`,
+                cursor: isExpandable ? 'pointer' : 'default',
               }}
             >
               <span
@@ -649,11 +851,13 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
                   <span className="text-[10px]" style={{ color: t.text.muted }}>—</span>
                 )}
               </div>
-              <ChevronDown
-                size={14}
-                className="shrink-0 transition-transform"
-                style={{ color: t.text.muted, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-              />
+              {isExpandable && (
+                <ChevronDown
+                  size={14}
+                  className="shrink-0 transition-transform"
+                  style={{ color: t.text.muted, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                />
+              )}
             </button>
 
             {isOpen && (
@@ -681,7 +885,9 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
                     const maxPhase  = Math.max(...m.phases.map((x) => x.total), 1);
                     const barPct    = (p.total / maxPhase) * 100;
                     const pBadge    = tempoBadge(p.tempo);
-                    const hasSaidas = p.saidas.length > 0;
+                    const hasSaidas   = p.saidas.length > 0;
+                    const hasEntradas = p.entradas.length > 0;
+                    const currentOrder = MACROFASE_ORDER.indexOf(m.id);
 
                     return (
                       <div
@@ -697,11 +903,19 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
                           className="grid items-center gap-2 px-3 py-2.5"
                           style={{
                             gridTemplateColumns: PHASE_COLS,
-                            borderBottom: hasSaidas ? `1px solid ${t.border.subtle}` : 'none',
+                            borderBottom: (hasSaidas || hasEntradas) ? `1px solid ${t.border.subtle}` : 'none',
                           }}
                         >
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>{p.nome}</p>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>{p.nome}</p>
+                              {p.fase === 600 && (
+                                <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold whitespace-nowrap"
+                                      style={{ backgroundColor: '#DCFCE7', color: '#16A34A', border: '1px solid #BBF7D0' }}>
+                                  Fim do Funil
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] tabular-nums" style={{ color: t.text.muted }}>Fase {p.fase}</p>
                           </div>
                           <div className="h-1.5 overflow-hidden rounded-full pl-2" style={{ backgroundColor: t.border.default }}>
@@ -736,42 +950,88 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
                           </div>
                         </div>
 
-                        {hasSaidas && (
-                          <div className="flex flex-wrap items-center gap-1.5 px-3 py-2" style={{ backgroundColor: t.bg.base }}>
-                            <span className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: t.text.muted }}>
-                              Fluxo
-                            </span>
-                            {[...p.saidas]
-                              .sort((a, b) => {
-                                const ai = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(a.para) ?? '');
-                                const bi = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(b.para) ?? '');
-                                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-                              })
-                              .map((s) => {
-                                const isCancelled = faseMacrofaseMap.get(s.para) === 'Cancelada';
-                                const dc          = faseColorMap.get(s.para) ?? m.color;
-                                return (
-                                  <span key={s.para}
-                                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                                        style={{
-                                          backgroundColor: isCancelled ? '#FFF1F2' : `${dc}12`,
-                                          color:           isCancelled ? '#DC2626'  : t.text.secondary,
-                                          border:          isCancelled ? '1px solid #FECDD3' : `1px solid ${dc}30`,
-                                        }}>
-                                    <span style={{ color: isCancelled ? '#EF4444' : dc, fontWeight: 700 }}>→</span>
-                                    {s.nome}
-                                    <span className="font-bold tabular-nums ml-0.5" style={{ color: isCancelled ? '#DC2626' : t.text.primary }}>
-                                      {s.qtd.toLocaleString('pt-BR')}
-                                    </span>
-                                  </span>
-                                );
-                              })}
+                        {(hasSaidas || hasEntradas) && (
+                          <div className="flex flex-col gap-0" style={{ backgroundColor: t.bg.base }}>
+                            {hasSaidas && (
+                              <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
+                                <span className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: t.text.muted }}>
+                                  Saiu para →
+                                </span>
+                                {[...p.saidas]
+                                  .sort((a, b) => {
+                                    const ai = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(a.para) ?? '');
+                                    const bi = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(b.para) ?? '');
+                                    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                                  })
+                                  .map((s) => {
+                                    const isCancelled  = faseMacrofaseMap.get(s.para) === 'Cancelada';
+                                    const isReprovDest = s.para === 101;
+                                    const isConcluido  = faseMacrofaseMap.get(s.para) === 'Concluído' || s.para === 800;
+                                    const isNeg        = isCancelled || isReprovDest;
+                                    const dc           = faseColorMap.get(s.para) ?? m.color;
+                                    return (
+                                      <span key={s.para}
+                                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                                            style={{
+                                              backgroundColor: isConcluido ? '#F0FDF4' : isNeg ? '#FFF1F2' : `${dc}12`,
+                                              color:           isConcluido ? '#16A34A'  : isNeg ? '#DC2626'  : t.text.secondary,
+                                              border:          isConcluido ? '1px solid #BBF7D0' : isNeg ? '1px solid #FECDD3' : `1px solid ${dc}30`,
+                                            }}>
+                                        <span style={{ color: isConcluido ? '#16A34A' : isNeg ? '#EF4444' : dc, fontWeight: 700 }}>
+                                          {isReprovDest ? '✗' : isConcluido ? '✓' : '→'}
+                                        </span>
+                                        {s.nome}
+                                        <span className="font-bold tabular-nums ml-0.5" style={{ color: isNeg ? '#DC2626' : t.text.primary }}>
+                                          {s.qtd.toLocaleString('pt-BR')}
+                                        </span>
+                                      </span>
+                                    );
+                                  })}
+                              </div>
+                            )}
+                            {hasEntradas && (
+                              <div className="flex flex-wrap items-center gap-1.5 px-3 py-2"
+                                   style={{ borderTop: hasSaidas ? `1px solid ${t.border.subtle}` : 'none' }}>
+                                <span className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: t.text.muted }}>
+                                  Recebeu de ←
+                                </span>
+                                {[...p.entradas]
+                                  .sort((a, b) => b.qtd - a.qtd)
+                                  .map((e) => {
+                                    const sourceMacro  = faseMacrofaseMap.get(e.de) ?? '';
+                                    const sourceOrder  = MACROFASE_ORDER.indexOf(sourceMacro);
+                                    const isBackward   = sourceOrder > currentOrder && sourceOrder !== -1 && currentOrder !== -1;
+                                    const dc           = faseColorMap.get(e.de) ?? t.text.muted;
+                                    return (
+                                      <span key={e.de}
+                                            className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                                            style={{
+                                              backgroundColor: isBackward ? '#FFF7ED' : `${dc}10`,
+                                              color:           isBackward ? '#B45309'  : t.text.secondary,
+                                              border:          isBackward ? '1px solid #FED7AA' : `1px solid ${dc}25`,
+                                            }}>
+                                        <span style={{ color: isBackward ? '#F59E0B' : dc, fontWeight: 700 }}>
+                                          {isBackward ? '↩' : '←'}
+                                        </span>
+                                        {e.nome}
+                                        <span className="font-bold tabular-nums ml-0.5"
+                                              style={{ color: isBackward ? '#B45309' : t.text.primary }}>
+                                          {e.qtd.toLocaleString('pt-BR')}
+                                        </span>
+                                      </span>
+                                    );
+                                  })}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
+                {m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0 && (
+                  <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} concluido={concluídoRow} faseColorMap={faseColorMap} faseMacrofaseMap={faseMacrofaseMap} />
+                )}
               </div>
             )}
           </div>
@@ -818,7 +1078,6 @@ function ExpandFunnelMode({ funnelRows, posEmissaoRows, concluídoRow, cancelada
         </div>
       )}
 
-      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
     </div>
   );
 }
@@ -833,14 +1092,16 @@ function chevronClip(first: boolean, last: boolean): string {
   return `polygon(0 0, calc(100% - ${NOTCH}px) 0, 100% 50%, calc(100% - ${NOTCH}px) 100%, 0 100%, ${NOTCH}px 50%)`;
 }
 
-function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t, dimensao = 'operacoes' }: {
+function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, concluídoRow, tokens: t, dimensao = 'operacoes' }: {
   funnelRows:    MacrofaseRow[];
   posEmissaoRows: MacrofaseRow[];
   canceladaRow:  MacrofaseRow | null;
+  concluídoRow:  MacrofaseRow | null;
   tokens:        BankTokens;
   dimensao?:     'operacoes' | 'cpf';
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded,     setExpanded]     = useState<Set<string>>(new Set());
+  const [showExample,  setShowExample]  = useState(false);
 
   const toggle = useCallback((id: string) => {
     setExpanded((prev) => {
@@ -858,14 +1119,14 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
 
   const faseColorMap     = new Map<number, string>();
   const faseMacrofaseMap = new Map<number, string>();
-  for (const row of [...funnelRows, ...(canceladaRow ? [canceladaRow] : [])]) {
+  for (const row of [...funnelRows, ...posEmissaoRows, ...(concluídoRow ? [concluídoRow] : []), ...(canceladaRow ? [canceladaRow] : [])]) {
     for (const phase of row.phases) {
       faseColorMap.set(phase.fase, row.color);
       faseMacrofaseMap.set(phase.fase, row.id);
     }
   }
 
-  const openRows = funnelRows.filter(m => expanded.has(m.id));
+  const openRows = funnelRows.filter(m => expanded.has(m.id) && (m.phases.length > 0 || (m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0)));
 
   return (
     <div
@@ -903,18 +1164,21 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
       {/* Chevron row */}
       <div className="flex items-stretch px-4 pt-4">
         {funnelRows.map((m, i) => {
-          const isFirst = i === 0;
-          const isLast  = i === n - 1;
-          const isOpen  = expanded.has(m.id);
-          const pct     = (m.count / baseline) * 100;
-          const Icon    = MACROFASE_ICONS[m.id] ?? Layers;
-          const pl      = i > 0 ? NOTCH + 8 : 10;
-          const pr      = !isLast ? NOTCH + 8 : 10;
+          const isFirst      = i === 0;
+          const isLast       = i === n - 1;
+          const isRegistro   = false;
+          const toggleId     = isRegistro ? 'Emissão de Contrato' : m.id;
+          const isOpen       = isRegistro ? expanded.has('Emissão de Contrato') : expanded.has(m.id);
+          const isExpandable = isRegistro ? true : m.phases.length > 0 || (m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0);
+          const pct          = (m.count / baseline) * 100;
+          const Icon         = MACROFASE_ICONS[m.id] ?? Layers;
+          const pl           = i > 0 ? NOTCH + 8 : 10;
+          const pr           = !isLast ? NOTCH + 8 : 10;
 
           return (
             <button
               key={m.id}
-              onClick={() => toggle(m.id)}
+              onClick={() => isExpandable && toggle(toggleId)}
               className="flex-1 flex flex-col items-center justify-center gap-1.5 py-6 transition-opacity min-w-0"
               style={{
                 clipPath:        chevronClip(isFirst, isLast),
@@ -923,7 +1187,7 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
                 zIndex:          n - i,
                 paddingLeft:     `${pl}px`,
                 paddingRight:    `${pr}px`,
-                cursor:          'pointer',
+                cursor:          isExpandable ? 'pointer' : 'default',
               }}
             >
               {/* Icon bubble */}
@@ -965,7 +1229,7 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
       {/* Metrics row — step-to-step conversion, abandono, avg time */}
       <div
         className="grid pb-3 pt-2 px-4"
-        style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, borderBottom: openRows.length > 0 ? DASH : 'none' }}
+        style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}
       >
         {funnelRows.map((m, i) => {
           const prevCount = i > 0 ? funnelRows[i - 1].count : m.count;
@@ -975,35 +1239,35 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
           return (
             <div
               key={m.id}
-              className="flex flex-col items-center gap-0.5 py-1"
+              className="flex flex-col items-center gap-1 py-1"
               style={{ borderRight: i < n - 1 ? `1px dashed ${t.border.default}` : 'none' }}
             >
               {convPct ? (
-                <span className="text-[9px] font-bold tabular-nums" style={{ color: m.color }}>
+                <span className="text-[10px] font-bold tabular-nums" style={{ color: m.color }}>
                   {convPct}
                 </span>
               ) : (
-                <span className="text-[8px] font-semibold uppercase tracking-wide" style={{ color: t.text.muted }}>
+                <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: t.text.muted }}>
                   {dimensao === 'cpf' ? 'base CPF' : 'base funil'}
                 </span>
               )}
               {(m.reprovados ?? 0) > 0 && (
-                <span className="text-[8px] tabular-nums font-bold" style={{ color: '#DC2626' }}>
+                <span className="text-[9px] tabular-nums font-bold" style={{ color: '#DC2626' }}>
                   ✗ {formatCount(m.reprovados!)} reprov.
                 </span>
               )}
               {m.abandono > 0 && (
-                <span className="text-[8px] tabular-nums" style={{ color: '#EF4444' }}>
+                <span className="text-[10px] font-semibold tabular-nums" style={{ color: '#EF4444' }}>
                   ↩ {formatCount(m.abandono)}
                 </span>
               )}
               {m.emAndamento > 0 && (
-                <span className="text-[8px] tabular-nums font-bold" style={{ color: '#F59E0B' }}>
+                <span className="text-[10px] font-semibold tabular-nums" style={{ color: '#F59E0B' }}>
                   ⏸ {formatCount(m.emAndamento)}
                 </span>
               )}
               <span
-                className="rounded px-1 text-[8px] font-semibold tabular-nums"
+                className="rounded px-1.5 text-[10px] font-semibold tabular-nums"
                 style={{ backgroundColor: badge.bg, color: badge.text }}
               >
                 {badge.label}
@@ -1013,7 +1277,61 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
         })}
       </div>
 
-      <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} />
+      {/* Legend — funnel math equation */}
+      <div
+        className="px-4 pb-3"
+        style={{ borderBottom: openRows.length > 0 ? DASH : 'none' }}
+      >
+        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+          <span style={{ fontSize: '9px', color: t.text.muted }}>Por etapa (aprox.):</span>
+          <span className="font-black" style={{ fontSize: '9px', color: t.text.secondary }}>N chegaram</span>
+          <span style={{ fontSize: '9px', color: t.text.muted }}>≈</span>
+          <span className="font-bold" style={{ fontSize: '9px', color: t.text.secondary }}>N etapa anterior</span>
+          <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+          <span className="font-bold" style={{ fontSize: '9px', color: '#EF4444' }}>↩ cancelaram lá</span>
+          <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+          <span className="font-bold" style={{ fontSize: '9px', color: '#F59E0B' }}>⏸ ficaram parados lá</span>
+          <span style={{ fontSize: '9px', color: t.text.muted }}>· cada macrofase conta propostas únicas (não soma de sub-fases)</span>
+          <button
+            onClick={() => setShowExample(v => !v)}
+            className="ml-1 rounded px-1.5 py-0.5 font-semibold"
+            style={{ fontSize: '8px', color: t.text.muted, border: `1px solid ${t.border.default}` }}
+          >
+            {showExample ? 'ocultar' : 'ver exemplo'}
+          </button>
+        </div>
+
+        {showExample && funnelRows.length > 1 && (() => {
+          const exRow     = funnelRows[0];
+          const exNextRow = funnelRows[1];
+          const exCalc    = exRow.count - exRow.abandono - exRow.emAndamento;
+          return (
+            <div
+              className="flex items-center justify-center gap-1 flex-wrap mt-2 pt-2"
+              style={{ borderTop: `1px solid ${t.border.subtle}` }}
+            >
+              <span className="font-bold" style={{ fontSize: '9px', color: exRow.color }}>
+                Ex. ({exRow.label}):
+              </span>
+              <span className="font-black tabular-nums" style={{ fontSize: '9px', color: t.text.secondary }}>
+                {exRow.count.toLocaleString('pt-BR')}
+              </span>
+              <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+              <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: '#EF4444' }}>
+                ↩ {exRow.abandono.toLocaleString('pt-BR')}
+              </span>
+              <span style={{ fontSize: '9px', color: t.text.muted }}>−</span>
+              <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: '#F59E0B' }}>
+                ⏸ {exRow.emAndamento.toLocaleString('pt-BR')}
+              </span>
+              <span style={{ fontSize: '9px', color: t.text.muted }}>≈</span>
+              <span className="font-bold tabular-nums" style={{ fontSize: '9px', color: exNextRow.color }}>
+                {exCalc.toLocaleString('pt-BR')} chegaram ao {exNextRow.label}
+              </span>
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Expanded phase sections — one per open macrofase, stacked */}
       {openRows.map((m) => (
@@ -1021,24 +1339,35 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
 
           {/* Section header */}
           <div
-            className="flex items-center justify-between px-5 py-2.5"
+            className="flex flex-col gap-1 px-5 py-2.5"
             style={{ backgroundColor: `${m.color}08`, borderBottom: `1px solid ${m.color}20` }}
           >
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
-              <span className="text-xs font-bold" style={{ color: m.color }}>{m.label}</span>
-              <span className="text-[10px]" style={{ color: t.text.muted }}>
-                {m.phases.length} fase{m.phases.length !== 1 ? 's' : ''}
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
+                <span className="text-xs font-bold" style={{ color: m.color }}>{m.label}</span>
+                <span className="text-[10px]" style={{ color: t.text.muted }}>
+                  {m.phases.length} fase{m.phases.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <button
+                onClick={() => toggle(m.id)}
+                className="flex items-center gap-1 text-[10px] font-medium"
+                style={{ color: t.text.muted }}
+              >
+                <ChevronUp size={13} />
+                Fechar
+              </button>
             </div>
-            <button
-              onClick={() => toggle(m.id)}
-              className="flex items-center gap-1 text-[10px] font-medium"
-              style={{ color: t.text.muted }}
-            >
-              <ChevronUp size={13} />
-              Fechar
-            </button>
+            <p className="text-[10px]" style={{ color: t.text.muted }}>
+              <span className="font-semibold tabular-nums" style={{ color: m.color }}>
+                {m.count.toLocaleString('pt-BR')}
+              </span>
+              {' '}{dimensao === 'cpf' ? 'CPFs únicos' : 'propostas únicas'} neste macrofase
+              {m.phases.length > 1 && m.id !== 'Emissão de Contrato' && (
+                <> · total = operações únicas em qualquer sub-fase <span className="font-semibold">(não soma)</span></>
+              )}
+            </p>
           </div>
 
           {/* Phase column headers */}
@@ -1064,19 +1393,22 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
           {/* Phase cards */}
           <div className="flex flex-col gap-2 p-3" style={{ backgroundColor: t.bg.base }}>
             {m.phases.map((p) => {
-              const maxPhase  = Math.max(...m.phases.map((x) => x.total), 1);
-              const barPct    = (p.total / maxPhase) * 100;
-              const pBadge    = tempoBadge(p.tempo);
-              const hasSaidas = p.saidas.length > 0;
+              const maxPhase    = Math.max(...m.phases.map((x) => x.total), 1);
+              const barPct      = (p.total / maxPhase) * 100;
+              const pBadge      = tempoBadge(p.tempo);
+              const hasSaidas    = p.saidas.length > 0;
+              const hasEntradas  = p.entradas.length > 0;
+              const isReprovado  = p.fase === 101;
+              const currentOrder = MACROFASE_ORDER.indexOf(m.id);
 
               return (
                 <div
                   key={p.fase}
                   className="rounded-lg overflow-hidden"
                   style={{
-                    backgroundColor: t.bg.surface,
-                    border:     `1px solid ${t.border.default}`,
-                    borderLeft: `3px solid ${m.color}`,
+                    backgroundColor: isReprovado ? '#FFF5F5' : t.bg.surface,
+                    border:     `1px solid ${isReprovado ? '#FECDD3' : t.border.default}`,
+                    borderLeft: `3px solid ${isReprovado ? '#EF4444' : m.color}`,
                   }}
                 >
                   {/* Metrics row */}
@@ -1084,11 +1416,19 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
                     className="grid items-center gap-2 px-3 py-2.5"
                     style={{
                       gridTemplateColumns: PHASE_COLS,
-                      borderBottom: hasSaidas ? `1px solid ${t.border.subtle}` : 'none',
+                      borderBottom: (hasSaidas || hasEntradas || isReprovado) ? `1px solid ${isReprovado ? '#FECDD3' : t.border.subtle}` : 'none',
                     }}
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold" style={{ color: t.text.primary }}>{p.nome}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="truncate text-xs font-semibold" style={{ color: isReprovado ? '#DC2626' : t.text.primary }}>{p.nome}</p>
+                        {p.fase === 600 && (
+                          <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-bold whitespace-nowrap"
+                                style={{ backgroundColor: '#DCFCE7', color: '#16A34A', border: '1px solid #BBF7D0' }}>
+                            Fim do Funil
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] tabular-nums" style={{ color: t.text.muted }}>Fase {p.fase}</p>
                     </div>
 
@@ -1139,53 +1479,117 @@ function ChevronFunnelMode({ funnelRows, posEmissaoRows, canceladaRow, tokens: t
                     </div>
                   </div>
 
-                  {/* Fluxo row */}
-                  {hasSaidas && (
-                    <div
-                      className="flex flex-wrap items-center gap-1.5 px-3 py-2"
-                      style={{ backgroundColor: t.bg.base }}
-                    >
-                      <span
-                        className="text-[9px] font-bold uppercase tracking-wider mr-1"
-                        style={{ color: t.text.muted }}
-                      >
-                        Fluxo
-                      </span>
-                      {[...p.saidas]
-                        .sort((a, b) => {
-                          const ai = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(a.para) ?? '');
-                          const bi = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(b.para) ?? '');
-                          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-                        })
-                        .map((s) => {
-                          const isCancelled = faseMacrofaseMap.get(s.para) === 'Cancelada';
-                          const dc          = faseColorMap.get(s.para) ?? m.color;
-                          return (
-                            <span
-                              key={s.para}
-                              className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                              style={{
-                                backgroundColor: isCancelled ? '#FFF1F2' : `${dc}12`,
-                                color:           isCancelled ? '#DC2626'  : t.text.secondary,
-                                border:          isCancelled ? '1px solid #FECDD3' : `1px solid ${dc}30`,
-                              }}
-                            >
-                              <span style={{ color: isCancelled ? '#EF4444' : dc, fontWeight: 700 }}>→</span>
-                              {s.nome}
-                              <span className="font-bold tabular-nums ml-0.5" style={{ color: isCancelled ? '#DC2626' : t.text.primary }}>
-                                {s.qtd.toLocaleString('pt-BR')}
-                              </span>
-                            </span>
-                        );
-                      })}
+                  {/* Nota explicativa — apenas fase 101 */}
+                  {isReprovado && (
+                    <p className="px-3 py-2 text-[10px] leading-snug" style={{ color: '#B91C1C', backgroundColor: '#FFF5F5' }}>
+                      Propostas reprovadas não avançam no funil. O encerramento de cada uma é mostrado no fluxo abaixo.
+                    </p>
+                  )}
+
+                  {/* Fluxo rows */}
+                  {(hasSaidas || hasEntradas) && (
+                    <div className="flex flex-col" style={{ backgroundColor: isReprovado ? '#FFF5F5' : t.bg.base }}>
+                      {hasSaidas && (
+                        <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider mr-1"
+                            style={{ color: isReprovado ? '#EF4444' : t.text.muted }}
+                          >
+                            Saiu para →
+                          </span>
+                          {[...p.saidas]
+                            .sort((a, b) => {
+                              const ai = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(a.para) ?? '');
+                              const bi = MACROFASE_ORDER.indexOf(faseMacrofaseMap.get(b.para) ?? '');
+                              return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                            })
+                            .map((s) => {
+                              const isCancelled  = faseMacrofaseMap.get(s.para) === 'Cancelada';
+                              const isReprovDest = s.para === 101;
+                              const isConcluido  = faseMacrofaseMap.get(s.para) === 'Concluído' || s.para === 800;
+                              const isNegative   = isCancelled || isReprovDest;
+                              const isSameMacro  = !isNegative && !isConcluido && faseMacrofaseMap.get(s.para) === m.id;
+                              const dc           = faseColorMap.get(s.para) ?? m.color;
+                              return (
+                                <span
+                                  key={s.para}
+                                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                                  style={{
+                                    backgroundColor: isNegative ? '#FFF1F2' : isConcluido ? '#F0FDF4' : `${dc}12`,
+                                    color:           isNegative ? '#DC2626'  : isConcluido ? '#15803D' : t.text.secondary,
+                                    border:          isNegative ? '1px solid #FECDD3' : isConcluido ? '1px solid #BBF7D0' : `1px solid ${dc}30`,
+                                    borderStyle:     isSameMacro ? 'dashed' : 'solid',
+                                    opacity:         isSameMacro ? 0.65 : 1,
+                                  }}
+                                >
+                                  <span style={{ color: isNegative ? '#EF4444' : isConcluido ? '#16A34A' : dc, fontWeight: 700 }}>
+                                    {isReprovDest ? '✗' : isConcluido ? '✓' : '→'}
+                                  </span>
+                                  {s.nome}
+                                  <span className="font-bold tabular-nums ml-0.5" style={{ color: isNegative ? '#DC2626' : isConcluido ? '#15803D' : t.text.primary }}>
+                                    {s.qtd.toLocaleString('pt-BR')}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                        </div>
+                      )}
+                      {hasEntradas && (
+                        <div
+                          className="flex flex-wrap items-center gap-1.5 px-3 py-2"
+                          style={{ borderTop: hasSaidas ? `1px solid ${isReprovado ? '#FECDD3' : t.border.subtle}` : 'none' }}
+                        >
+                          <span className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: t.text.muted }}>
+                            Recebeu de ←
+                          </span>
+                          {[...p.entradas]
+                            .sort((a, b) => b.qtd - a.qtd)
+                            .map((e) => {
+                              const sourceMacro = faseMacrofaseMap.get(e.de) ?? '';
+                              const sourceOrder = MACROFASE_ORDER.indexOf(sourceMacro);
+                              const isBackward  = sourceOrder > currentOrder && sourceOrder !== -1 && currentOrder !== -1;
+                              const isSameMacro = !isBackward && sourceMacro === m.id;
+                              const dc          = faseColorMap.get(e.de) ?? t.text.muted;
+                              return (
+                                <span
+                                  key={e.de}
+                                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                                  style={{
+                                    backgroundColor: isBackward ? '#FFF7ED' : `${dc}10`,
+                                    color:           isBackward ? '#B45309'  : t.text.secondary,
+                                    border:          isBackward ? '1px solid #FED7AA' : `1px solid ${dc}25`,
+                                    borderStyle:     isSameMacro ? 'dashed' : 'solid',
+                                    opacity:         isSameMacro ? 0.65 : 1,
+                                  }}
+                                >
+                                  <span style={{ color: isBackward ? '#F59E0B' : dc, fontWeight: 700 }}>
+                                    {isBackward ? '↩' : '←'}
+                                  </span>
+                                  {e.nome}
+                                  <span className="font-bold tabular-nums ml-0.5" style={{ color: isBackward ? '#B45309' : t.text.primary }}>
+                                    {e.qtd.toLocaleString('pt-BR')}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
+          {false && m.id === 'Emissão de Contrato' && posEmissaoRows.length > 0 && (
+            <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} concluido={concluídoRow} faseColorMap={faseColorMap} faseMacrofaseMap={faseMacrofaseMap} />
+          )}
         </div>
       ))}
+      {(expanded.has('Emissão de Contrato') || expanded.has('Registro de Contrato')) && posEmissaoRows.length > 0 && (
+        <div style={{ borderTop: `2px solid ${MACROFASE_COLOR['Registro de Contratos'] ?? '#06B6D4'}30` }}>
+          <PosEmissaoSection rows={posEmissaoRows} baseline={baseline} tokens={t} concluido={concluídoRow} faseColorMap={faseColorMap} faseMacrofaseMap={faseMacrofaseMap} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1208,7 +1612,7 @@ export function MacroMilestones({ fases, tempos, tokens: t, mode = 'funnel', tra
   }
 
   if (mode === 'chevron') {
-    return <ChevronFunnelMode funnelRows={funnelRows} posEmissaoRows={posEmissaoRows} canceladaRow={canceladaRow} tokens={t} dimensao={dimensao} />;
+    return <ChevronFunnelMode funnelRows={funnelRows} posEmissaoRows={posEmissaoRows} canceladaRow={canceladaRow} concluídoRow={concluídoRow} tokens={t} dimensao={dimensao} />;
   }
 
   return (

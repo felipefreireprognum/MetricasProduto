@@ -67,7 +67,7 @@ export const BANKS: BankConfig[] = [
     dbType: 'SQL Server',
     ambiente: '',
     apiPrefix: '/inter',
-    enabled: false,
+    enabled: true,
     colors: {
       bg: '#FF8700',
       text: '#FFFFFF',

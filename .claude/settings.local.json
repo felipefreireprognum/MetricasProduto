@@ -35,7 +35,16 @@
       "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"instrumentation.ts\" } | Select-Object -First 30)",
       "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; npx tsc --noEmit 2>&1 | Select-String -NotMatch \"instrumentation\" | Select-Object -First 20 | ForEach-Object { $_.ToString\\(\\) })",
       "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; $out = npx tsc --noEmit 2>&1; $out | Where-Object { $_ -notmatch \"instrumentation\" })",
-      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; $r = npx tsc --noEmit 2>&1; Write-Host \\($r -join \"`n\"\\))"
+      "PowerShell(cd \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\"; $r = npx tsc --noEmit 2>&1; Write-Host \\($r -join \"`n\"\\))",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\" -Recurse -Depth 4 | Where-Object { $_.FullName -notmatch \"node_modules|\\\\.next|__pycache__|CONSULTAS|\\\\.git\" } | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\\", \"\"\\) } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\ui\" -Recurse | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\cache\" -Recurse | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\\", \"\"\\) })",
+      "Bash(dir /S /B \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\\\\src\")",
+      "Bash(findstr /E \".tsx .ts\")",
+      "Bash(dir /S /B \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\")",
+      "Bash(findstr /E \".md\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Felipe.Freire\\\\Documents\\\\Documentos\\\\Tarefas\\\\Metricas\\\\frontend\\\\src\" -Recurse -Name)",
+      "Bash(Select-String -Pattern \"\\(layout|header|navigation|nav\\)\")"
     ]
   }
 }

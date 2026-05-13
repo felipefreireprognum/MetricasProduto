@@ -180,9 +180,12 @@ CACHE_SQL_FIREBIRD = (
 
 CACHE_SQL_SQLSERVER = (
     "SELECT TOP {limit} h.NU_OPERACAO, h.NU_FASE_OPERACAO, h.DT_INICIO_FASE, "
-    "h.CO_USUARIO_FASE, f.NO_FASE_OPERACAO "
+    "h.CO_USUARIO_FASE, f.NO_FASE_OPERACAO, cpf_sub.NU_CPF "
     "FROM HISTORICO_OPERACAO h "
     "LEFT JOIN FASE_OPERACAO f ON h.NU_FASE_OPERACAO = f.NU_FASE_OPERACAO "
+    "LEFT JOIN (SELECT NU_OPERACAO, MIN(LTRIM(RTRIM(NU_CPF))) AS NU_CPF "
+    "           FROM OPERACAO_CREDITO GROUP BY NU_OPERACAO) cpf_sub "
+    "ON cpf_sub.NU_OPERACAO = h.NU_OPERACAO "
     "ORDER BY h.DT_INICIO_FASE DESC"
 )
 
@@ -200,24 +203,38 @@ app.add_middleware(
 
 # ── Dashboard processing ───────────────────────────────────────────────────────
 
-def _build_dashboard_data(df: pd.DataFrame) -> dict | None:
+def _build_dashboard_data(df: pd.DataFrame, ops_com_sim: set | None = None) -> dict | None:
+    _EMPTY = {
+        'operacoesPorFase': [], 'volumePorData': [], 'tempoMedioPorFase': [],
+        'topUsuarios': [], 'topCpfs': [], 'distribuicaoFases': [], 'evolucaoMensal': [],
+        'transicoes': [], 'macrofaseTotais': [],
+        'kpis': {
+            'totalRegistros': 0, 'operacoesUnicas': 0, 'fasesUnicas': 0, 'topUsuario': '—',
+            'operacoesIniciadas': 0, 'operacoesConcluidas': 0, 'operacoesCanceladas': 0,
+            'operacoesEmFila': 0, 'taxaConversao': 0, 'tempoMedioTotal': None,
+        },
+        'colunas': [], 'primeiraLinha': None,
+    }
     if df.empty:
-        return {
-            'operacoesPorFase': [], 'volumePorData': [], 'tempoMedioPorFase': [],
-            'topUsuarios': [], 'distribuicaoFases': [], 'evolucaoMensal': [],
-            'kpis': {
-                'totalRegistros': 0, 'operacoesUnicas': 0, 'fasesUnicas': 0, 'topUsuario': '—',
-                'operacoesIniciadas': 0, 'operacoesConcluidas': 0, 'operacoesCanceladas': 0,
-                'operacoesEmFila': 0, 'taxaConversao': 0, 'tempoMedioTotal': None,
-            },
-            'colunas': [], 'primeiraLinha': None,
-        }
+        return _EMPTY
 
     df = df.copy()
     df.columns = [c.upper() if isinstance(c, str) else str(c) for c in df.columns]
     df['DT_INICIO_FASE'] = pd.to_datetime(df['DT_INICIO_FASE'], errors='coerce')
     df['NU_FASE_OPERACAO'] = pd.to_numeric(df['NU_FASE_OPERACAO'], errors='coerce').fillna(0).astype(int)
     df['NU_OPERACAO'] = df['NU_OPERACAO'].astype(str).str.strip()
+
+    # Integrity filter: keep only ops that have at least one Simulação (phase 0 or 1) record.
+    # When called from /dashboard with a date filter, ops_com_sim is pre-computed from the FULL
+    # Parquet so ops whose Simulação falls outside the filtered period are not wrongly dropped.
+    if ops_com_sim is None:
+        _ops = set(df.loc[df['NU_FASE_OPERACAO'].isin({0, 1}), 'NU_OPERACAO'].unique())
+    else:
+        _ops = ops_com_sim
+    df = df[df['NU_OPERACAO'].isin(_ops)]
+
+    if df.empty:
+        return _EMPTY
 
     col_usuario = 'CO_USUARIO_FASE'
     if col_usuario in df.columns:
@@ -239,12 +256,14 @@ def _build_dashboard_data(df: pd.DataFrame) -> dict | None:
     if 'MACROFASE' not in df.columns:
         df['MACROFASE'] = df['FASE_NOME']
 
-    # Migrate old macrofase names from legacy Parquet files to current nomenclature
+    # Normalise macrofase names from Parquet to dashboard categories:
+    # - fases 500-505 → 'Emissão de Contrato'   (formalização + emissão, fim do funil)
+    # - fases 600-701 → 'Registro de Contratos'  (registro + liberação)
     if 'NU_FASE_OPERACAO' in df.columns:
         _emissao_codes  = {500, 501, 502, 503, 504, 505}
         _registro_codes = {600, 601, 700, 701}
-        _mask_formal = df['MACROFASE'] == 'Formalização'
-        _mask_libera = df['MACROFASE'] == 'Liberação'
+        _mask_formal = df['MACROFASE'].isin({'Formalização', 'Emissão de Contrato'})
+        _mask_libera = df['MACROFASE'].isin({'Liberação', 'Registro de Contratos'})
         if _mask_formal.any():
             df.loc[_mask_formal & df['NU_FASE_OPERACAO'].isin(_emissao_codes),  'MACROFASE'] = 'Emissão de Contrato'
             df.loc[_mask_formal & df['NU_FASE_OPERACAO'].isin(_registro_codes), 'MACROFASE'] = 'Registro de Contratos'
@@ -668,10 +687,18 @@ def parquet_diagnostico(
         df = pd.read_parquet(path)
         _SIMULACAO_CODES = {0, 1}
 
+        # Normalize: Parquets antigos têm NO_FASE, novos têm NO_FASE (via _apply_fase_map)
+        nome_col = 'NO_FASE' if 'NO_FASE' in df.columns else ('FASE_NOME' if 'FASE_NOME' in df.columns else None)
+        macro_col = 'MACROFASE' if 'MACROFASE' in df.columns else None
+
+        group_cols = ['NU_FASE_OPERACAO']
+        if nome_col:  group_cols.append(nome_col)
+        if macro_col: group_cols.append(macro_col)
+
         # Para cada operação, pega a fase com menor código (a "primeira" etapa registrada)
         primeira_fase = (
             df.sort_values('NU_FASE_OPERACAO')
-            .groupby('NU_OPERACAO')[['NU_FASE_OPERACAO', 'FASE_NOME', 'MACROFASE']]
+            .groupby('NU_OPERACAO')[group_cols]
             .first()
             .reset_index()
         )
@@ -683,35 +710,167 @@ def parquet_diagnostico(
         ops_sem_simulacao  = total_ops - ops_com_simulacao
 
         # Distribuição: qual macrofase é a PRIMEIRA registrada para cada operação
-        dist_primeira_macro = (
-            primeira_fase.groupby('MACROFASE')['NU_OPERACAO']
-            .count()
-            .sort_values(ascending=False)
-            .reset_index(name='ops')
-        )
+        dist_primeira_macro = []
+        if macro_col:
+            dist_primeira_macro = (
+                primeira_fase.groupby(macro_col)['NU_OPERACAO']
+                .count()
+                .sort_values(ascending=False)
+                .reset_index(name='ops')
+            )
 
         # Distribuição por fase individual (código)
+        fase_group = ['NU_FASE_OPERACAO'] + ([nome_col] if nome_col else [])
         dist_primeira_fase = (
-            primeira_fase.groupby(['NU_FASE_OPERACAO', 'FASE_NOME'])['NU_OPERACAO']
+            primeira_fase.groupby(fase_group)['NU_OPERACAO']
             .count()
             .sort_values(ascending=False)
             .head(20)
             .reset_index(name='ops')
         )
 
+        def _macro_rows(df_m):
+            if df_m is None or (hasattr(df_m, '__len__') and len(df_m) == 0): return []
+            col = macro_col or 'MACROFASE'
+            return [{'macrofase': getattr(r, col, ''), 'ops': int(r.ops)} for r in df_m.itertuples()]
+
+        def _fase_rows(df_f):
+            rows = []
+            for r in df_f.itertuples():
+                nome = getattr(r, nome_col, f'Fase {r.NU_FASE_OPERACAO}') if nome_col else f'Fase {r.NU_FASE_OPERACAO}'
+                rows.append({'fase': int(r.NU_FASE_OPERACAO), 'nome': nome, 'ops': int(r.ops)})
+            return rows
+
         return _to_native({
             'totalOps':          total_ops,
             'comSimulacao':      ops_com_simulacao,
             'semSimulacao':      ops_sem_simulacao,
             'pctSemSimulacao':   round(ops_sem_simulacao / total_ops * 100, 1) if total_ops else 0,
-            'primeiraMacrofase': [
-                {'macrofase': r.MACROFASE, 'ops': int(r.ops)}
-                for r in dist_primeira_macro.itertuples()
-            ],
-            'primeiraFase': [
-                {'fase': int(r.NU_FASE_OPERACAO), 'nome': r.FASE_NOME, 'ops': int(r.ops)}
-                for r in dist_primeira_fase.itertuples()
-            ],
+            'primeiraMacrofase': _macro_rows(dist_primeira_macro),
+            'primeiraFase':      _fase_rows(dist_primeira_fase),
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/gaps")
+def gaps_analysis(
+    banco:    str = Query(default='c6'),
+    ambiente: str = Query(default=None),
+    inicio:   _date = Query(default=None),
+    fim:      _date = Query(default=None),
+):
+    """
+    Para cada macrofase do funil, mostra:
+      - total_macrofase : ops contadas via op_max_pipeline >= threshold (o número do funil)
+      - ops_com_registro: ops com pelo menos um registro real nessa macrofase
+      - gap             : total_macrofase - ops_com_registro
+        (ops que o funil conta mas que nunca tocaram a fase — entradas laterais em etapas posteriores)
+    Também devolve a distribuição da primeira fase registrada por operação.
+    """
+    path = _cache_path(banco, ambiente)
+    if not os.path.exists(path):
+        return {'existe': False}
+    try:
+        df = pd.read_parquet(path)
+        if inicio or fim:
+            ops_com_sim = set(
+                df.loc[df['NU_FASE_OPERACAO'].isin({0, 1}), 'NU_OPERACAO'].astype(str).str.strip()
+            )
+            dt = pd.to_datetime(df['DT_INICIO_FASE'], errors='coerce')
+            if inicio:
+                df = df[dt >= pd.Timestamp(str(inicio))]
+            if fim:
+                df = df[dt < pd.Timestamp(str(fim)) + pd.Timedelta(days=1)]
+            df = df[df['NU_OPERACAO'].astype(str).str.strip().isin(ops_com_sim)]
+
+        _CANCELADAS_CODES = set(range(900, 939)) | {1000}
+
+        # Fase máxima não-cancelada por operação (mesma lógica de _build_dashboard_data)
+        df_pipeline     = df[~df['NU_FASE_OPERACAO'].isin(_CANCELADAS_CODES)]
+        op_max_pipeline = df_pipeline.groupby('NU_OPERACAO')['NU_FASE_OPERACAO'].max()
+        all_op_ids      = df['NU_OPERACAO'].unique()
+        op_max_pipeline = op_max_pipeline.reindex(all_op_ids, fill_value=0)
+        total_ops       = len(op_max_pipeline)
+
+        # Mapeamento: macrofase → threshold mínimo (igual ao _build_dashboard_data)
+        _MACROFASE_MIN = {
+            'Simulação':              0,
+            'Cadastro':              50,
+            'Crédito':              100,
+            'Negociação':           200,
+            'Análise de Documentos': 300,
+            'Análise Técnica':      400,
+            'Emissão de Contrato':  501,
+        }
+
+        # Mapeamento: macrofase → códigos de fase reais
+        _MACROFASE_CODES = {
+            'Simulação':              {0, 1},
+            'Cadastro':               {50, 80, 90},
+            'Crédito':                {100, 101},
+            'Negociação':             {200, 201, 202},
+            'Análise de Documentos':  {300, 301},
+            'Análise Técnica':        {400, 401, 402, 403, 404, 405, 406, 407, 408, 409},
+            'Emissão de Contrato':    {500, 501},
+        }
+
+        _emissao_macro = next((m for m in _MACROFASE_MIN if m.startswith('Emiss')), None)
+        if _emissao_macro:
+            _MACROFASE_MIN[_emissao_macro] = 500
+            _MACROFASE_CODES[_emissao_macro] = {500, 501, 502, 503, 504, 505}
+        _MACROFASE_MIN['Registro de Contratos'] = 600
+        _MACROFASE_CODES['Registro de Contratos'] = {600, 601, 700, 701}
+
+        rows = []
+        for macro, min_code in _MACROFASE_MIN.items():
+            total_macro   = int((op_max_pipeline >= min_code).sum())
+            phase_codes   = _MACROFASE_CODES.get(macro, set())
+            ops_com_reg   = int(df[df['NU_FASE_OPERACAO'].isin(phase_codes)]['NU_OPERACAO'].nunique()) if phase_codes else 0
+            gap           = total_macro - ops_com_reg
+            rows.append({
+                'macrofase':       macro,
+                'totalMacrofase':  total_macro,
+                'opsComRegistro':  ops_com_reg,
+                'gap':             gap,
+                'pctGap':          round(gap / total_macro * 100, 2) if total_macro else 0,
+            })
+
+        # Primeira fase registrada por operação (by menor código de fase)
+        nome_col  = next((c for c in ('FASE_NOME', 'NO_FASE') if c in df.columns), None)
+        macro_col = 'MACROFASE' if 'MACROFASE' in df.columns else None
+
+        primeira_fase = (
+            df.sort_values('NU_FASE_OPERACAO')
+            .groupby('NU_OPERACAO')[['NU_FASE_OPERACAO'] + ([nome_col] if nome_col else []) + ([macro_col] if macro_col else [])]
+            .first()
+            .reset_index()
+        )
+
+        # Distribuição de onde cada operação "começou"
+        grp_cols = ['NU_FASE_OPERACAO'] + ([nome_col] if nome_col else []) + ([macro_col] if macro_col else [])
+        dist = (
+            primeira_fase.groupby(grp_cols)['NU_OPERACAO']
+            .count()
+            .sort_values(ascending=False)
+            .head(25)
+            .reset_index(name='ops')
+        )
+        primeiraFase = []
+        for r in dist.itertuples():
+            primeiraFase.append({
+                'fase':      int(r.NU_FASE_OPERACAO),
+                'nome':      getattr(r, nome_col, f'Fase {r.NU_FASE_OPERACAO}') if nome_col else f'Fase {r.NU_FASE_OPERACAO}',
+                'macrofase': getattr(r, macro_col, '') if macro_col else '',
+                'ops':       int(r.ops),
+                'pct':       round(int(r.ops) / total_ops * 100, 1) if total_ops else 0,
+            })
+
+        return _to_native({
+            'existe':       True,
+            'totalOps':     total_ops,
+            'porMacrofase': rows,
+            'primeiraFase': primeiraFase,
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -823,14 +982,29 @@ def get_dashboard(
         return {'existe': False, 'banco': banco, 'data': None, 'savedAt': None}
     try:
         df = pd.read_parquet(path)
+        ops_com_sim_full: set | None = None
         if inicio or fim:
+            # Integrity check on FULL dataset: ops valid only if they have a Simulação record.
+            # Must run BEFORE date filter so ops that started before the period are not wrongly
+            # excluded (ops whose Simulação falls outside the filtered window would be dropped
+            # if the check ran on the already-filtered df).
+            ops_com_sim_full = set(
+                df.loc[df['NU_FASE_OPERACAO'].isin({0, 1}), 'NU_OPERACAO'].astype(str).str.strip()
+            )
+            # Row-level date filter: compare Timestamps directly to avoid TypeError on NaT rows
+            # that arise when DT_INICIO_FASE has coerced-null values (dt.dt.date + None >= date
+            # raises TypeError in Python which becomes an unhandled 500).
             dt = pd.to_datetime(df['DT_INICIO_FASE'], errors='coerce')
             if inicio:
-                df = df[dt.dt.date >= inicio]
+                df = df[dt >= pd.Timestamp(str(inicio))]
             if fim:
-                df = df[dt.dt.date <= fim]
+                df = df[dt < pd.Timestamp(str(fim)) + pd.Timedelta(days=1)]
+            # Apply integrity filter using the pre-computed full-dataset set.
+            df = df[df['NU_OPERACAO'].astype(str).str.strip().isin(ops_com_sim_full)]
         saved_at = datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
-        data     = _build_dashboard_data(df)
+        # Pass ops_com_sim_full so _build_dashboard_data doesn't re-run integrity check on the
+        # filtered slice (which would remove ops whose Simulação is outside the date window).
+        data     = _build_dashboard_data(df, ops_com_sim=ops_com_sim_full)
         return {'existe': True, 'banco': banco, 'data': data, 'savedAt': saved_at}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -950,9 +1124,12 @@ def expand_cache(
             con = database_sqlserver.get_connection(login=login, senha=senha)
             sql = (
                 f"SELECT TOP {limit} h.NU_OPERACAO, h.NU_FASE_OPERACAO, h.DT_INICIO_FASE, "
-                f"h.CO_USUARIO_FASE, f.NO_FASE_OPERACAO "
+                f"h.CO_USUARIO_FASE, f.NO_FASE_OPERACAO, cpf_sub.NU_CPF "
                 f"FROM HISTORICO_OPERACAO h "
                 f"LEFT JOIN FASE_OPERACAO f ON h.NU_FASE_OPERACAO = f.NU_FASE_OPERACAO "
+                f"LEFT JOIN (SELECT NU_OPERACAO, MIN(LTRIM(RTRIM(NU_CPF))) AS NU_CPF "
+                f"           FROM OPERACAO_CREDITO GROUP BY NU_OPERACAO) cpf_sub "
+                f"ON cpf_sub.NU_OPERACAO = h.NU_OPERACAO "
                 f"WHERE h.DT_INICIO_FASE < '{min_date}' "
                 f"ORDER BY h.DT_INICIO_FASE DESC"
             )

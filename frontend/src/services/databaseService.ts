@@ -81,6 +81,23 @@ export const databaseService = {
     URL.revokeObjectURL(url);
   },
 
+  async getGaps(banco: string, ambiente?: string, inicio?: string, fim?: string): Promise<{
+    existe:       boolean;
+    totalOps?:    number;
+    porMacrofase?: { macrofase: string; totalMacrofase: number; opsComRegistro: number; gap: number; pctGap: number }[];
+    primeiraFase?: { fase: number; nome: string; macrofase: string; ops: number; pct: number }[];
+  }> {
+    const { data } = await api.get('/gaps', {
+      params: {
+        banco,
+        ...(ambiente && { ambiente }),
+        ...(inicio && { inicio }),
+        ...(fim && { fim }),
+      },
+    });
+    return data;
+  },
+
   async getJornada(banco: string, ambiente?: string): Promise<JornadaData> {
     const { data } = await api.get<JornadaData>('/jornada', {
       params: { banco, ...(ambiente && { ambiente }) },

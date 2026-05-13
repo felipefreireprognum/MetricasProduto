@@ -2,17 +2,16 @@
 
 import { useState } from 'react';
 import {
-  Layers, BookOpen,
+  Layers,
   TrendingUp, CheckCircle2, XCircle, Clock, Timer,
-  Users, RefreshCw, UserPlus,
+  Users, RefreshCw, UserPlus, GitBranch,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFilters } from '@/contexts/FiltersContext';
 import { useDashboardScreen } from '@/hooks/dashboard/useDashboardScreen';
 import LoadingState from '@/components/shared/LoadingState';
 import { MacroMilestones } from '@/components/features/MacroMilestones/MacroMilestones';
-import { PhaseLegendModal } from '@/components/features/PhaseLegendModal/PhaseLegendModal';
-import { PageHeaderBar } from '@/components/layout/PageHeader/PageHeader';
+import { GapsModal } from '@/components/features/GapsModal/GapsModal';
 import type { DashboardKpis } from '@/types/dashboard';
 import type { BankTokens } from '@/theme/tokens';
 
@@ -156,75 +155,15 @@ function FunnelKpis({ kpis, tokens: t, dimensao }: { kpis: DashboardKpis; tokens
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function FaseAnalysisScreen() {
-  const { dataGlobal, loading, lastUpdated, fromCache } = useDashboardScreen();
-  const { tokens: t, bancosConectados } = useAuth();
-  const { dimensao } = useFilters();
-
-  const [scrolled, setScrolled]     = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
-  const bancoCurrent = bancosConectados[0]?.id ?? 'c6';
+  const { dataGlobal, activeBank, loading } = useDashboardScreen();
+  const { tokens: t } = useAuth();
+  const { dimensao, periodoInicio, periodoFim, periodoLabel } = useFilters();
+  const [showGaps, setShowGaps] = useState(false);
 
   const semDados = !loading && !dataGlobal;
 
-  const dateRange = (() => {
-    if (!dataGlobal) return null;
-    const e = dataGlobal.evolucaoMensal;
-    if (e.length > 0) return { from: e[0].label, to: e[e.length - 1].label };
-    return null;
-  })();
-
   return (
-    <div
-      className="h-screen overflow-y-auto"
-      style={{ backgroundColor: t.bg.base }}
-      onScroll={e => setScrolled((e.currentTarget as HTMLDivElement).scrollTop > 4)}
-    >
-      <PageHeaderBar
-        title="Por Fase"
-        icon={<Layers size={20} style={{ color: t.accent.primary }} />}
-        description={lastUpdated ?? 'Volume, abandono e fluxo por fase do pipeline'}
-        scrolled={scrolled}
-        tokens={t}
-        badges={fromCache && (
-          <span
-            className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: '#F59E0B15', color: '#F59E0B', border: '1px solid #F59E0B30' }}
-          >
-            cache local
-          </span>
-        )}
-        right={(
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowLegend(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
-              style={{
-                backgroundColor: t.bg.surface,
-                border: `1px solid ${t.border.default}`,
-                color: t.text.secondary,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = t.accent.primary)}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = t.border.default)}
-            >
-              <BookOpen size={12} />
-              Legenda
-            </button>
-            {dateRange && (
-              <div
-                className="flex items-center gap-2 rounded-lg px-3 py-1.5"
-                style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}` }}
-              >
-                <span className="text-[11px]" style={{ color: t.text.muted }}>Dados de</span>
-                <span className="text-xs font-semibold tabular-nums" style={{ color: t.text.secondary }}>{dateRange.from}</span>
-                <span className="text-[10px]" style={{ color: t.text.muted }}>→</span>
-                <span className="text-xs font-semibold tabular-nums" style={{ color: t.text.secondary }}>{dateRange.to}</span>
-              </div>
-            )}
-          </div>
-        )}
-      />
-
-      <div className="px-6 pb-6">
+    <div className="px-6 pb-6">
         {loading ? (
           <LoadingState message="Carregando fases..." tokens={t} />
         ) : semDados ? (
@@ -241,6 +180,19 @@ export default function FaseAnalysisScreen() {
         ) : dataGlobal && (
           <>
             <FunnelKpis kpis={dataGlobal.kpis} tokens={t} dimensao={dimensao} />
+
+            {/* Gaps button */}
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={() => setShowGaps(true)}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all hover:opacity-80"
+                style={{ backgroundColor: t.bg.surface, border: `1px solid ${t.border.default}`, color: t.text.secondary }}
+              >
+                <GitBranch size={12} />
+                Análise de Gaps
+              </button>
+            </div>
+
             <div>
               <MacroMilestones
                 fases={
@@ -258,13 +210,16 @@ export default function FaseAnalysisScreen() {
             </div>
           </>
         )}
-      </div>
 
-      {showLegend && (
-        <PhaseLegendModal
-          banco={bancoCurrent}
-          onClose={() => setShowLegend(false)}
+      {showGaps && activeBank && (
+        <GapsModal
           tokens={t}
+          onClose={() => setShowGaps(false)}
+          banco={activeBank.id}
+          ambiente={activeBank.ambiente}
+          inicio={periodoInicio ?? undefined}
+          fim={periodoFim ?? undefined}
+          periodoLabel={periodoLabel}
         />
       )}
     </div>

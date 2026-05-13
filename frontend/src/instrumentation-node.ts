@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 
-const apiDir = path.resolve(process.cwd(), '..');
+const apiDir = path.resolve(process.cwd(), '..', 'backend');
 
 const uvicorn = spawn('uvicorn', ['api:app', '--reload', '--host', '0.0.0.0', '--port', '8000'], {
   cwd: apiDir,

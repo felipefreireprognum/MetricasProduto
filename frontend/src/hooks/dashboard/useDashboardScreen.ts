@@ -50,5 +50,5 @@ export function useDashboardScreen() {
     .filter(Boolean)
     .join(' · ') || null;
 
-  return { dataC6, dataInter, dataGlobal, loading, hasData, fromCache, lastUpdated };
+  return { dataC6, dataInter, dataGlobal, activeBank, loading, hasData, fromCache, lastUpdated };
 }

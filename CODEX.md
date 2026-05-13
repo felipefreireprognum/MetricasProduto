@@ -1,212 +1,136 @@
-# Métricas SCCI — Originação / FCVS
+# Metricas SCCI - Contexto para Codex
 
-## Objetivo do Projeto
+Este arquivo e o guia rapido para trabalho no repositorio. A documentacao detalhada fica em `docs/`.
 
-Sistema interno de visualização e análise de métricas de **originação de crédito imobiliário** no **SCCI (Sistema de Controle de Crédito Imobiliário)** relacionado ao **FCVS**. O projeto cruza dados de fases do processo, usuários, CPFs e histórico local em Parquet para gerar dashboards analíticos.
+## Prioridade de Leitura
 
-O foco atual do produto é:
-- Visão geral do funil de propostas por macrofase.
-- Análise por fase, tendências e rankings.
-- Diagnóstico automático por indicador (severidade).
-- Jornada da pessoa por CPF.
-- BD de métricas local em Parquet com expansão histórica.
+Antes de mexer em calculos ou funil:
 
----
+1. `docs/metodologia/GAPS_TRANSICOES.md`
+2. `docs/metodologia/METODOLOGIA_EVOLUCAO_MACROFASES.md`
+3. `docs/sessoes/SESSAO_2025-05-12.md`
 
-## Stack
+Para contexto geral:
 
-- **Backend**: FastAPI, Uvicorn, pandas, pyarrow.
-- **Frontend**: Next.js 16, React 19, Tailwind CSS 4, Recharts, lucide-react.
-- **Bancos**: Firebird via SSH tunnel; SQL Server previsto/desabilitado para Banco Inter.
-- **Warehouse local**: arquivos Parquet em `CONSULTAS/`.
+- `docs/produto/PRODUTO.md`
+- `docs/arquitetura/ARQUITETURA.md`
+- `README.md`
 
----
+## Projeto
+
+Dashboard interno de metricas de originacao de credito imobiliario no SCCI/FCVS.
+
+Fluxo principal:
+
+```text
+Banco remoto via SSH
+-> endpoints de cache
+-> Parquet local em backend/CONSULTAS/
+-> FastAPI processa com pandas
+-> Next.js renderiza dashboards
+```
 
 ## Como Rodar
 
 Backend:
-```bash
+
+```powershell
 cd backend
-uvicorn api:app --reload --port 8000
+conda activate metrics
+uvicorn api:app --reload --port 8001
 ```
 
 Frontend:
-```bash
+
+```powershell
 cd frontend
-npm run dev
+npm run dev -- --port 3001
 ```
 
-Acesso local:
-```text
-http://localhost:3000
-```
-
----
-
-## Arquitetura de Dados
-
-O dashboard não deve depender de SQL em tempo real para renderizar. O fluxo principal é:
-
-```text
-Firebird / SQL Server via SSH
-  -> ETL pelos endpoints de cache
-  -> backend/CONSULTAS/metricas_<banco>_<ambiente>.parquet
-  -> FastAPI le Parquet com pandas
-  -> Next.js renderiza graficos e tabelas
-```
-
-`backend/CONSULTAS/` é dado local/cache e deve continuar fora do Git.
-
----
+Observacao: `api.py` fica dentro de `backend/`. Rodar `uvicorn api:app` a partir da raiz causa `Could not import module "api"`.
 
 ## Backend
 
-Arquivo principal:
-- `backend/api.py`
+Arquivos principais:
 
-Conexões:
+- `backend/api.py`: FastAPI, ETL/cache, dashboard, gaps, jornada.
 - `backend/core/database.py`: Firebird via SSH tunnel.
-- `backend/core/database_sqlserver.py`: SQL Server via SSH tunnel.
+- `backend/core/database_sqlserver.py`: SQL Server.
+- `backend/requirements.txt`: dependencias Python.
 
-Endpoints importantes:
-- `GET /dashboard?banco=&ambiente=`
-- `GET /cache/refresh?banco=&limit=&login=&senha=&ambiente=`
-- `GET /cache/expand?banco=&limit=&login=&senha=&ambiente=`
-- `GET /parquet/info?banco=&ambiente=`
-- `GET /parquet/dados?banco=&ambiente=&limit=&offset=&ordem=&desc=`
-- `GET /historico?banco=&limit=&inicio=&fim=&login=&senha=&ambiente=`
-- `GET /jornada?banco=&ambiente=`
-- `GET /tabelas`, `GET /tabela/{nome}`, `GET /query`
+Endpoints mais usados:
 
-Funções centrais:
-- `_cache_path(banco, ambiente)`: define o caminho do Parquet.
-- `_apply_fase_map(df, banco)`: aplica o mapeamento de fases.
-- `_build_dashboard_data(df)`: monta o shape usado pelo frontend.
-- `_to_native(obj)`: converte pandas/numpy para JSON serializavel.
-
-Ao alterar métricas, mantenha compatibilidade com os tipos em `frontend/src/types/dashboard/index.ts`.
-
----
+- `/dashboard`
+- `/cache/refresh`
+- `/cache/expand`
+- `/parquet/info`
+- `/parquet/dados`
+- `/gaps`
+- `/jornada`
+- `/tabelas`, `/tabela/{nome}`, `/query`
 
 ## Frontend
 
-Rotas principais:
-- `/dashboard`: visão geral — KPIs, evolução, funil.
-- `/fases`: funil chevron com drill-down por fase.
-- `/tendencias`: série temporal de iniciadas/concluídas/conversão.
-- `/rankings`: rankings de fases, usuários e CPFs.
-- `/diagnostico`: semáforo automático por indicador.
-- `/jornada`: jornada da pessoa por CPF.
-- `/explorer`: BD Métricas / Parquet explorer.
-- `/dados`: Fontes / atualização e expansão do warehouse.
-- `/tabelas`: consulta viva ao banco.
+Arquivos principais:
 
-Arquivos importantes:
-- `frontend/src/services/databaseService.ts`
-- `frontend/src/contexts/AuthContext.tsx`
-- `frontend/src/contexts/CacheContext.tsx`
-- `frontend/src/contexts/FiltersContext.tsx`
-- `frontend/src/constants/banks.ts`
-- `frontend/src/constants/routes.ts`
-- `frontend/src/theme/phaseColors.ts`
-- `frontend/src/types/dashboard/index.ts`
-
-Componentes e telas recentes:
-- `frontend/src/screens/JornadaScreen/JornadaScreen.tsx`
-- `frontend/src/screens/RankingsScreen/RankingsScreen.tsx`
-- `frontend/src/screens/TendenciasScreen/TendenciasScreen.tsx`
+- `frontend/src/screens/DashboardScreen/DashboardScreen.tsx`
+- `frontend/src/screens/FaseAnalysisScreen/FaseAnalysisScreen.tsx`
 - `frontend/src/components/features/MacroPhaseBar/MacroPhaseBar.tsx`
-- `frontend/src/components/features/CpfInsightsPanel/CpfInsightsPanel.tsx`
+- `frontend/src/components/features/MacroMilestones/MacroMilestones.tsx`
+- `frontend/src/components/features/GapsModal/GapsModal.tsx`
+- `frontend/src/services/databaseService.ts`
+- `frontend/src/types/dashboard/index.ts`
+- `frontend/src/contexts/FiltersContext.tsx`
 
----
+## Regras de Metodologia
 
-## Domínio
+Use nomes precisos:
 
-Mapeamento de macrofases:
+- `phase_counts`: passou por fase especifica.
+- `macrofaseTotais`: funil acumulado, maior fase atingida.
+- `transicoes`: fluxo reconstruido por pares consecutivos.
+- `emAndamento`: ultima fase registrada.
 
-| Macrofase (raw Parquet) | Códigos | Exibido no frontend |
-|---|---|---|
-| Simulação | 0, 1 | Simulação |
-| Cadastro | 50, 80, 90 | Cadastro |
-| Crédito | 100, 101 | Crédito |
-| Negociação | 200-202 | Negociação |
-| Análise de Documentos | 300, 301 | Análise de Documentos |
-| Análise Técnica | 400-409 | Análise Técnica |
-| Formalização | 500-505 | Emissão de Contrato* |
-| Formalização | 600-601 | Registro de Contratos* |
-| Liberação | 700-701 | Registro de Contratos* |
-| Concluído | 800 | Concluído |
-| Cancelada | 900-938, 1000 | Cancelada |
+Registro:
 
-*Migração aplicada em `_build_dashboard_data` ao ler o Parquet.
+- Fase 600 e o marco principal de Registro do Contrato.
+- Para cobranca/validacao, usar volume da fase 600.
+- Fases 601, 700 e 701 sao pos-registro/acompanhamento operacional.
 
-Termos:
-- **AG31**: relatório mensal do SCCI.
-- **SCCI**: Sistema de Controle de Crédito Imobiliário.
-- **FCVS**: Fundo de Compensação de Variações Salariais.
-- **HISTORICO_OPERACAO**: tabela base do histórico de fases.
-- **NU_OPERACAO**: identificador da operação.
-- **NU_CPF**: identificador da pessoa, usado nas análises de jornada/reincidência.
-- **NO_FASE / MACROFASE**: nomes calculados para apresentação.
+Evolucao mensal por macrofase:
 
----
+- Deve contar operacoes unicas com registro real na macrofase dentro do mes.
+- Usa `DT_INICIO_FASE`.
+- Nao e funil acumulado.
 
-## Cuidados Para Codex
+Transicoes:
 
-- Não commitar nem imprimir credenciais, `.env`, senhas SSH ou dados sensíveis.
-- Não versionar `CONSULTAS/`, caches locais, `.next/` ou arquivos gerados.
-- Antes de editar, verificar `git status` porque o usuário pode ter mudanças locais.
-- Não reverter alterações existentes sem pedido explícito.
-- Preferir mudanças pequenas e compatíveis com os padrões já existentes.
-- Se mexer no shape da API, atualizar os tipos TypeScript correspondentes.
-- Se mexer em cálculo de métrica, preservar nomes e compatibilidade usados por telas existentes.
-- Evitar SQL livre no frontend; consultas vivas passam pelos endpoints do backend.
-- O app roda em caminho Windows montado no WSL (`/mnt/c/...`), então builds do Next podem ter problemas de permissão em `.next`.
-- Se `npm run build` falhar com Turbopack em `/mnt/c`, validar com `npx next build --webpack`.
-- `next/font/google` pode falhar sem rede; preferir fontes locais/sistema para build reprodutivel.
-- Se `sharp` ou SWC falhar no WSL, conferir dependências opcionais Linux no `node_modules`.
+- `Recebeu de` e `Saiu para` sao diagnostico de fluxo.
+- A soma pode nao fechar com total da fase por causa de filtro de periodo, timestamp igual, entrada direta, ajuste manual ou registro retroativo.
 
----
+## Cuidados de Implementacao
 
-## Validação Recomendada
+- Nao alterar CSS/estrutura visual quando o pedido for apenas de logica.
+- Nao reverter mudancas do usuario.
+- Antes de mudar shape da API, atualizar tipos TypeScript.
+- Antes de mudar calculo, atualizar/consultar docs em `docs/metodologia/`.
+- Manter `backend/CONSULTAS/`, `.env`, `.next/` e caches fora do Git.
+- Preferir alteracoes pequenas e verificaveis.
 
-Frontend:
-```bash
-cd frontend
-npx tsc --noEmit
-npx next build --webpack
-```
+## Validacao
 
 Backend:
-```bash
-cd backend
-uvicorn api:app --reload --port 8000
+
+```powershell
+python -m py_compile backend\api.py
 ```
 
-Sanidade Git:
-```bash
-git status --short --branch
-git diff --stat
+Frontend:
+
+```powershell
+cd frontend
+.\node_modules\.bin\tsc.cmd --noEmit
 ```
 
----
+Observacao: no ambiente atual, o TypeScript pode falhar por erros ja existentes em `RankingsScreen.tsx`; diferencie erro novo de erro preexistente.
 
-## Estrutura de Pastas
-
-```
-Metricas/
-├── backend/
-│   ├── api.py
-│   ├── core/
-│   │   ├── database.py
-│   │   └── database_sqlserver.py
-│   ├── requirements.txt
-│   ├── .env
-│   ├── .env.example
-│   └── CONSULTAS/          ← warehouse Parquet (não versionado)
-├── frontend/               ← Next.js
-│   └── src/...
-├── CLAUDE.md
-├── CODEX.md
-└── README.md
-```
